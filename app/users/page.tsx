@@ -1,14 +1,15 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Plus, Search, Eye, Edit, UserX, Users } from "lucide-react";
-import type { User } from "@/lib/types/database";
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Plus, Search, Eye, Edit, UserX, Users, Shield } from "lucide-react"
+import type { User } from "@/lib/types/database"
 
 // Mock data
 const mockUsers: User[] = [
@@ -52,25 +53,41 @@ const mockUsers: User[] = [
     status: "Inactive",
     created_at: "2024-04-05"
   }
-];
+]
 
 export default function UsersPage() {
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter()
+  const { isAdmin, isLoading } = useAuth()
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!isLoading && !isAdmin) {
+      router.push("/dashboard")
+    }
+  }, [isLoading, isAdmin, router])
+
+  if (isLoading) {
+    return <div className="p-6">Loading...</div>
+  }
+
+  if (!isAdmin) {
+    return null
+  }
 
   const filteredUsers = mockUsers.filter(user =>
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.assigned_district.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  )
 
   const getStatusBadge = (status: User['status']) => {
     return (
       <Badge variant={status === 'Active' ? 'default' : 'secondary'}>
         {status}
       </Badge>
-    );
-  };
+    )
+  }
 
   const getRoleBadge = (role: User['role']) => {
     const colors: Record<User['role'], string> = {
@@ -80,12 +97,21 @@ export default function UsersPage() {
       'Petugas Lab': 'bg-cyan-500',
       'Kader RT': 'bg-orange-500',
       'Teknisi': 'bg-pink-500'
-    };
-    return <Badge className={colors[role]}>{role}</Badge>;
-  };
+    }
+    return <Badge className={colors[role]}>{role}</Badge>
+  }
 
   return (
     <div className="p-6 space-y-6">
+      {/* Admin Only Badge */}
+      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-center gap-3">
+        <Shield className="h-5 w-5 text-purple-600" />
+        <div>
+          <p className="font-semibold text-purple-900">Halaman Khusus Admin</p>
+          <p className="text-sm text-purple-700">Hanya Admin Pusat yang dapat mengelola user</p>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

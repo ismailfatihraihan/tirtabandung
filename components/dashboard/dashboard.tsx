@@ -5,7 +5,7 @@ import { StatsCard } from "./stats-card"
 import { WaterQualityChart } from "./water-quality-chart"
 import { ContaminationChart } from "./contamination-chart"
 import { MaintenanceTable } from "./maintenance-table"
-import { LeafletMap } from "./leaflet-map"
+import { GoogleMapComponent } from "./google-map"
 
 export function Dashboard() {
   return (
@@ -44,9 +44,9 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Heatmap Card */}
+      {/* Google Maps Card */}
       <div>
-        <LeafletMap />
+        <GoogleMapComponent />
       </div>
 
       {/* Scientific & Health Panel */}

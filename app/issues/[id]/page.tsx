@@ -1,16 +1,17 @@
-"use client";
+"use client"
 
-import { use, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Edit, Clock, User, MapPin, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
-import type { Issue } from "@/lib/types/database";
+import { use, useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Edit, Clock, User, MapPin, AlertCircle, Shield } from "lucide-react"
+import { toast } from "sonner"
+import type { Issue } from "@/lib/types/database"
 
 const mockIssue: Issue = {
   _id: "1",
@@ -21,14 +22,15 @@ const mockIssue: Issue = {
   description: "Terdapat kebocoran pipa utama di Jl. Cibaduyut. Air menyembur cukup tinggi dan menggenangi jalan. Perlu tindakan segera.",
   status: "Perlu Disurvei",
   created_at: "2024-12-29T08:00:00"
-};
+}
 
 export default function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const router = useRouter();
-  const [issue, setIssue] = useState(mockIssue);
-  const [updateNote, setUpdateNote] = useState("");
-  const [newStatus, setNewStatus] = useState(issue.status);
+  const { id } = use(params)
+  const router = useRouter()
+  const { isAdmin, isOfficer } = useAuth()
+  const [issue, setIssue] = useState(mockIssue)
+  const [updateNote, setUpdateNote] = useState("")
+  const [newStatus, setNewStatus] = useState(issue.status)
 
   const getSeverityBadge = (severity: Issue['severity_level']) => {
     const colors = {
@@ -36,9 +38,9 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
       'High': 'bg-orange-500',
       'Medium': 'bg-yellow-500',
       'Low': 'bg-blue-500'
-    };
-    return <Badge className={colors[severity]}>{severity}</Badge>;
-  };
+    }
+    return <Badge className={colors[severity]}>{severity}</Badge>
+  }
 
   const getStatusBadge = (status: Issue['status']) => {
     const colors = {
@@ -46,24 +48,24 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
       'Sedang Diperbaiki': 'bg-yellow-500',
       'Selesai': 'bg-green-500',
       'Invalid': 'bg-gray-500'
-    };
-    return <Badge className={colors[status]}>{status}</Badge>;
-  };
+    }
+    return <Badge className={colors[status]}>{status}</Badge>
+  }
 
   const handleUpdateStatus = () => {
     // TODO: API call
-    console.log("Update status:", newStatus, "Note:", updateNote);
-    setIssue({ ...issue, status: newStatus as Issue['status'] });
-    toast.success("Status berhasil diperbarui!");
-    setUpdateNote("");
-  };
+    console.log("Update status:", newStatus, "Note:", updateNote)
+    setIssue({ ...issue, status: newStatus as Issue['status'] })
+    toast.success("Status berhasil diperbarui!")
+    setUpdateNote("")
+  }
 
   const handleInvalidate = () => {
     // TODO: API call
-    console.log("Marking as invalid");
-    setIssue({ ...issue, status: 'Invalid' });
-    toast.success("Laporan ditandai sebagai invalid");
-  };
+    console.log("Marking as invalid")
+    setIssue({ ...issue, status: 'Invalid' })
+    toast.success("Laporan ditandai sebagai invalid")
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -78,13 +80,34 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
         <div className="flex gap-2">
-          {issue.status !== 'Invalid' && (
+          {/* Only Admin can mark as invalid or resolve */}
+          {isAdmin && issue.status !== 'Invalid' && (
             <Button variant="destructive" onClick={handleInvalidate}>
               Tandai Invalid
             </Button>
           )}
         </div>
       </div>
+
+      {/* Admin Only Badge for Update Actions */}
+      {isAdmin && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center gap-2 text-sm">
+          <Shield className="h-4 w-4 text-purple-600" />
+          <p className="text-purple-900">
+            <span className="font-semibold">Admin:</span> Anda dapat mengubah status dan menandai laporan sebagai selesai atau invalid
+          </p>
+        </div>
+      )}
+
+      {/* Officer View Only Badge */}
+      {isOfficer && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2 text-sm">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <p className="text-blue-900">
+            <span className="font-semibold">Officer:</span> Anda dapat melihat detail laporan. Untuk update status, hubungi Admin
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -139,23 +162,25 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Update Progres</CardTitle>
-            <CardDescription>Perbarui status penanganan</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status Baru</label>
-              <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Issue['status'])}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Perlu Disurvei">Perlu Disurvei</SelectItem>
-                  <SelectItem value="Sedang Diperbaiki">Sedang Diperbaiki</SelectItem>
-                  <SelectItem value="Selesai">Selesai</SelectItem>
-                </SelectContent>
+        {/* Only Admin can update status */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Update Progres</CardTitle>
+              <CardDescription>Perbarui status penanganan (Admin Only)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Status Baru</label>
+                <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Issue['status'])}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Perlu Disurvei">Perlu Disurvei</SelectItem>
+                    <SelectItem value="Sedang Diperbaiki">Sedang Diperbaiki</SelectItem>
+                    <SelectItem value="Selesai">Selesai</SelectItem>
+                  </SelectContent>
               </Select>
             </div>
 

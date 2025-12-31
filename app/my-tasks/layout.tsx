@@ -4,16 +4,13 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { usePathname } from "next/navigation"
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function MyTasksLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   
-  // Determine active tab from pathname
   const getActiveTab = () => {
     if (pathname.startsWith('/water-points')) return 'water-points'
     if (pathname.startsWith('/inspections')) return 'inspections'
     if (pathname.startsWith('/issues')) return 'issues'
-    if (pathname.startsWith('/actions')) return 'actions'
-    if (pathname.startsWith('/users')) return 'users'
     if (pathname.startsWith('/my-tasks')) return 'my-tasks'
     return 'dashboard'
   }
