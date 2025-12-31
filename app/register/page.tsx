@@ -39,20 +39,37 @@ export default function RegisterPage() {
 
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      // TODO: Replace with actual API call
-      const userData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        district: formData.district
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          role: formData.role,
+          district: formData.district || undefined
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || 'Registrasi gagal')
+        setIsLoading(false)
+        return
       }
+
       toast.success("Registrasi berhasil! Silakan login")
       router.push("/login")
+    } catch (error) {
+      console.error('Registration error:', error)
+      toast.error("Terjadi kesalahan. Coba lagi.")
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (

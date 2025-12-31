@@ -12,31 +12,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { LogOut, User, Settings } from "lucide-react"
-import { toast } from "sonner"
-import { useEffect, useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
 
 export function UserNav() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email: string; role: string } | null>(null)
-
-  useEffect(() => {
-    const userData = localStorage.getItem("user")
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
-  }, [])
-
-  const handleLogout = () => {
-    localStorage.removeItem("user")
-    toast.success("Berhasil logout")
-    router.push("/login")
-  }
+  const { user, logout } = useAuth()
 
   if (!user) return null
 
-  const initials = user.email
-    .split("@")[0]
-    .split(".")
+  const initials = user.name
+    .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
@@ -56,7 +41,8 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.email}</p>
+            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
             <p className="text-xs leading-none text-muted-foreground capitalize">
               {user.role}
             </p>
@@ -72,7 +58,7 @@ export function UserNav() {
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+        <DropdownMenuItem onClick={logout} className="text-red-600">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Logout</span>
         </DropdownMenuItem>

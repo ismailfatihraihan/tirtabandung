@@ -8,7 +8,8 @@ const protectedRoutes = [
   '/inspections',
   '/issues',
   '/actions',
-  '/users'
+  '/users',
+  '/my-tasks'
 ]
 
 // Routes yang hanya untuk Admin
@@ -23,13 +24,15 @@ const publicOnlyRoutes = ['/login', '/register']
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Check if user is authenticated and get role
-  const authToken = request.cookies.get('auth_token')?.value
+  // Get JWT token from cookie
+  const authToken = request.cookies.get('auth-token')?.value
   
-  // For demo, we'll check localStorage via header (in production use proper JWT)
-  const userRole = request.cookies.get('user_role')?.value
+  // Simple check: if token exists, user is authenticated
+  // Token validation will be done in API routes
+  const isAuthenticated = !!authToken
   
-  const isAuthenticated = authToken || request.headers.get('x-user-authenticated') === 'true'
+  // Get user role from separate cookie (set during login)
+  const userRole = request.cookies.get('user-role')?.value
   
   // Check if the route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
@@ -50,6 +53,9 @@ export function middleware(request: NextRequest) {
   
   // Redirect to dashboard if accessing login/register while authenticated
   if (isPublicOnlyRoute && isAuthenticated) {
+    if (userRole === 'officer') {
+      return NextResponse.redirect(new URL('/my-tasks', request.url))
+    }
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
   

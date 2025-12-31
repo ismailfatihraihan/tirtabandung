@@ -15,38 +15,45 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"admin" | "officer">("officer")
   const [isLoading, setIsLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      // TODO: Replace with actual API call
-      if (email && password) {
-        const userData = { 
-          email, 
-          role,
-          district: role === "officer" ? "Cibaduyut" : undefined  // Mock district for officer
-        }
-        localStorage.setItem("user", JSON.stringify(userData))
-        document.cookie = `auth_token=mock_token_${Date.now()}; path=/; max-age=86400`
-        document.cookie = `user_role=${role}; path=/; max-age=86400`
-        toast.success("Login berhasil!")
-        
-        // Redirect based on role
-        if (role === "officer") {
-          router.push("/my-tasks")
-        } else {
-          router.push("/dashboard")
-        }
-      } else {
-        toast.error("Email dan password harus diisi")
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || 'Login gagal')
+        setIsLoading(false)
+        return
       }
+
+      // Simpan user data ke localStorage
+      localStorage.setItem("user", JSON.stringify(data.user))
+      
+      toast.success("Login berhasil!")
+      
+      // Redirect based on role
+      if (data.user.role === "officer") {
+        router.push("/my-tasks")
+      } else {
+        router.push("/dashboard")
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      toast.error("Terjadi kesalahan. Coba lagi.")
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -86,18 +93,6 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={role} onValueChange={(value) => setRole(value as "admin" | "officer")}>
-                <SelectTrigger id="role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="officer">Officer</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Loading..." : "Login"}
