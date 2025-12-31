@@ -1,3 +1,5 @@
+"use client"
+
 import { AlertTriangle, CheckCircle, Droplets } from "lucide-react"
 import { StatsCard } from "./stats-card"
 import { WaterQualityChart } from "./water-quality-chart"
@@ -64,3 +66,5 @@ export function Dashboard() {
     </div>
   )
 }
+
+export default Dashboard

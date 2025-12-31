@@ -1,7 +1,8 @@
 "use client"
 import { cn } from "@/lib/utils"
-import { BarChart3, Droplet, AlertCircle, Settings, LogOut } from "lucide-react"
+import { BarChart3, Droplet, AlertCircle, Settings, LogOut, Users, FileText, Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 interface SidebarProps {
   currentView: "admin" | "officer"
@@ -12,15 +13,21 @@ interface SidebarProps {
 
 export function Sidebar({ currentView, onViewChange, activeTab, onActiveTabChange }: SidebarProps) {
   const adminItems = [
-    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-    { id: "monitoring", label: "Monitoring Data", icon: Droplet },
-    { id: "actions", label: "Action Tracking", icon: AlertCircle },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "dashboard", label: "Dashboard", icon: BarChart3, href: "/dashboard" },
+    { id: "water-points", label: "Titik Sumber Air", icon: Droplet, href: "/water-points" },
+    { id: "inspections", label: "Inspeksi Kualitas", icon: Activity, href: "/inspections" },
+    { id: "issues", label: "Pelaporan", icon: AlertCircle, href: "/issues" },
+    { id: "actions", label: "Tindakan & Progres", icon: FileText, href: "/actions" },
+    { id: "users", label: "Manajemen User", icon: Users, href: "/users" },
+    { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
   ]
 
   const officerItems = [
-    { id: "monitoring", label: "Input Data", icon: Droplet },
-    { id: "actions", label: "My Actions", icon: AlertCircle },
+    { id: "dashboard", label: "Dashboard", icon: BarChart3, href: "/dashboard" },
+    { id: "water-points", label: "Peta Titik Air", icon: Droplet, href: "/water-points" },
+    { id: "inspections", label: "Input Inspeksi", icon: Activity, href: "/inspections/new" },
+    { id: "issues", label: "Laporan Masalah", icon: AlertCircle, href: "/issues" },
+    { id: "actions", label: "Tindakan", icon: FileText, href: "/actions" },
   ]
 
   const items = currentView === "admin" ? adminItems : officerItems
@@ -29,7 +36,7 @@ export function Sidebar({ currentView, onViewChange, activeTab, onActiveTabChang
     <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col h-screen">
       {/* Logo */}
       <div className="p-6 border-b border-slate-200">
-        <div className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-sky-500 rounded-lg flex items-center justify-center">
             <Droplet className="w-6 h-6 text-white" />
           </div>
@@ -37,7 +44,7 @@ export function Sidebar({ currentView, onViewChange, activeTab, onActiveTabChang
             <h1 className="text-lg font-bold text-slate-900">TirtaBandung</h1>
             <p className="text-xs text-slate-500">Water Quality System</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -45,9 +52,9 @@ export function Sidebar({ currentView, onViewChange, activeTab, onActiveTabChang
         {items.map((item) => {
           const Icon = item.icon
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => onActiveTabChange(item.id)}
+              href={item.href}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-colors",
                 activeTab === item.id ? "bg-sky-500 text-white" : "text-slate-700 hover:bg-slate-200",
@@ -55,7 +62,7 @@ export function Sidebar({ currentView, onViewChange, activeTab, onActiveTabChang
             >
               <Icon className="w-5 h-5" />
               {item.label}
-            </button>
+            </Link>
           )
         })}
       </nav>
