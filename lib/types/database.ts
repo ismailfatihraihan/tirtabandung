@@ -12,7 +12,7 @@ export interface WaterPoint {
   name: string;
   location: Location;
   last_maintained: Date | string;
-  type?: 'Sumur Bor' | 'Sumur Gali' | 'PDAM' | 'Sungai' | 'Toren';
+  type?: 'Sumur Bor' | 'Sumur Gali' | 'PDAM' | 'Sungai' | 'Toren' | 'Reservoir' | 'Instalasi';
   depth?: number;
   status: 'Active' | 'Under Maintenance' | 'Inactive';
   created_at?: Date | string;
@@ -20,24 +20,22 @@ export interface WaterPoint {
 }
 
 export interface Parameters {
-  ph_level: number;
+  ph: number;
+  tds: number;
   turbidity: number;
-  odor: string;
-}
-
-export interface Evidence {
-  photo_url: string;
-  notes: string;
+  temperature?: number;
+  ecoli?: number;
 }
 
 export interface Inspection {
   _id: string;
   inspector_id: string;
   water_point_id: string;
-  timestamp: Date | string;
+  date: Date | string;
   parameters: Parameters;
-  evidence: Evidence;
-  status: 'Safe' | 'Warning' | 'Unsafe';
+  photos?: string[];
+  notes?: string;
+  status: 'Aman' | 'Perlu Perhatian' | 'Berbahaya';
   created_at?: Date | string;
 }
 

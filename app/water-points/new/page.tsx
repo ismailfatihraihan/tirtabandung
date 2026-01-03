@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, MapPin, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
 
 export default function NewWaterPointPage() {
@@ -16,22 +16,53 @@ export default function NewWaterPointPage() {
   const [formData, setFormData] = useState({
     name: "",
     type: "",
+    status: "Active",
     address: "",
     sub_district: "",
     lat: "",
     long: "",
-    depth: "",
-    status: "Active"
+    depth: ""
   });
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // TODO: API call to save data
-    console.log("Form data:", formData);
-    
-    toast.success("Titik air berhasil didaftarkan!");
-    router.push('/water-points');
+    if (isSaving) return;
+
+    try {
+      setIsSaving(true);
+      const payload = {
+        name: formData.name.trim(),
+        type: formData.type as any,
+        status: formData.status as any,
+        depth: formData.depth ? Number(formData.depth) : undefined,
+        location: {
+          lat: Number(formData.lat),
+          long: Number(formData.long),
+          address: formData.address.trim(),
+          sub_district: formData.sub_district.trim()
+        }
+      };
+
+      const res = await fetch('/api/water-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error ? 'Gagal menyimpan data: ' + JSON.stringify(err.error) : 'Gagal menyimpan data');
+      }
+
+      toast.success("Titik air berhasil didaftarkan!");
+      router.push('/water-points');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Terjadi kesalahan saat menyimpan');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -76,6 +107,22 @@ export default function NewWaterPointPage() {
                   <SelectItem value="PDAM">PDAM</SelectItem>
                   <SelectItem value="Sungai">Sungai</SelectItem>
                   <SelectItem value="Toren">Toren</SelectItem>
+                  <SelectItem value="Reservoir">Reservoir</SelectItem>
+                  <SelectItem value="Instalasi">Instalasi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status Operasional *</Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                <SelectTrigger id="status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Under Maintenance">Under Maintenance</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -145,9 +192,9 @@ export default function NewWaterPointPage() {
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Batal
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={isSaving}>
               <Save className="mr-2 h-4 w-4" />
-              Simpan Data
+              {isSaving ? 'Menyimpan...' : 'Simpan Data'}
             </Button>
           </CardFooter>
         </Card>

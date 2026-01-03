@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,47 +8,107 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Upload, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, Upload, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+interface WaterPoint {
+  id: string;
+  name: string;
+}
+
 export default function NewInspectionPage() {
   const router = useRouter();
+  const [waterPoints, setWaterPoints] = useState<WaterPoint[]>([]);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     water_point_id: "",
-    ph_level: "",
+    ph: "",
+    tds: "",
     turbidity: "",
-    odor: "",
+    temperature: "",
+    ecoli: "",
     notes: "",
-    photo: null as File | null
+    photos: [] as string[]
   });
 
   const [showWarning, setShowWarning] = useState(false);
 
+  useEffect(() => {
+    fetchWaterPoints();
+  }, []);
+
+  const fetchWaterPoints = async () => {
+    try {
+      const response = await fetch('/api/water-points');
+      if (response.ok) {
+        const data = await response.json();
+        setWaterPoints(data.data.map((wp: any) => ({ id: wp.id, name: wp.name })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch water points:', error);
+    }
+  };
+
   const checkSafety = () => {
-    const ph = parseFloat(formData.ph_level);
-    const turbidity = parseFloat(formData.turbidity);
-    
-    if (ph < 6.5 || ph > 8.5 || turbidity > 5 || formData.odor !== "Normal") {
+    const ph = parseFloat(formData.ph) || 0;
+    const turbidity = parseFloat(formData.turbidity) || 0;
+    const tds = parseFloat(formData.tds) || 0;
+    const ecoli = parseFloat(formData.ecoli) || 0;
+
+    if (ph < 6.5 || ph > 8.5 || turbidity > 5 || tds > 500 || ecoli > 0) {
       setShowWarning(true);
     } else {
       setShowWarning(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // TODO: API call to save data
-    console.log("Form data:", formData);
-    
-    if (showWarning) {
-      toast.error("⚠️ Air tidak aman! Notifikasi bahaya telah dikirim ke tim.");
-    } else {
-      toast.success("Hasil inspeksi berhasil disimpan!");
+    setLoading(true);
+
+    try {
+      const status = showWarning ? 'Berbahaya' : 'Aman';
+
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          water_point_id: formData.water_point_id,
+          date: new Date().toISOString(),
+          parameters: {
+            ph: parseFloat(formData.ph),
+            tds: parseFloat(formData.tds),
+            turbidity: parseFloat(formData.turbidity),
+            temperature: formData.temperature ? parseFloat(formData.temperature) : undefined,
+            ecoli: formData.ecoli ? parseFloat(formData.ecoli) : undefined
+          },
+          photos: formData.photos,
+          notes: formData.notes
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const status = data.data.status;
+        if (status === 'Berbahaya') {
+          toast.error("⚠️ Air tidak aman! Notifikasi bahaya telah dikirim ke tim.");
+        } else {
+          toast.success("Hasil inspeksi berhasil disimpan!");
+        }
+        router.push('/inspections');
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Gagal menyimpan inspeksi");
+      }
+    } catch (error) {
+      console.error('Failed to save inspection:', error);
+      toast.error("Terjadi kesalahan saat menyimpan");
+    } finally {
+      setLoading(false);
     }
-    
-    router.push('/inspections');
   };
 
   return (
@@ -81,34 +141,34 @@ export default function NewInspectionPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="water_point">Titik Air *</Label>
-              <Select 
-                value={formData.water_point_id} 
+              <Select
+                value={formData.water_point_id}
                 onValueChange={(value) => setFormData({ ...formData, water_point_id: value })}
               >
                 <SelectTrigger id="water_point">
                   <SelectValue placeholder="Pilih lokasi..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="wp1">Sumur Bor Cibaduyut</SelectItem>
-                  <SelectItem value="wp2">PDAM Dago Pakar</SelectItem>
-                  <SelectItem value="wp3">Sumur Gali Bojongsoang</SelectItem>
+                  {waterPoints.map((wp) => (
+                    <SelectItem key={wp.id} value={wp.id}>{wp.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ph_level">pH Level *</Label>
+                <Label htmlFor="ph">pH Level *</Label>
                 <Input
-                  id="ph_level"
+                  id="ph"
                   type="number"
                   step="0.1"
                   min="0"
                   max="14"
                   placeholder="7.0"
-                  value={formData.ph_level}
+                  value={formData.ph}
                   onChange={(e) => {
-                    setFormData({ ...formData, ph_level: e.target.value });
+                    setFormData({ ...formData, ph: e.target.value });
                     setTimeout(checkSafety, 100);
                   }}
                   required
@@ -116,6 +176,25 @@ export default function NewInspectionPage() {
                 <p className="text-xs text-muted-foreground">Normal: 6.5 - 8.5</p>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="tds">TDS (ppm) *</Label>
+                <Input
+                  id="tds"
+                  type="number"
+                  min="0"
+                  placeholder="150"
+                  value={formData.tds}
+                  onChange={(e) => {
+                    setFormData({ ...formData, tds: e.target.value });
+                    setTimeout(checkSafety, 100);
+                  }}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Normal: {'<'} 500 ppm</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="turbidity">Kekeruhan (NTU) *</Label>
                 <Input
@@ -133,26 +212,34 @@ export default function NewInspectionPage() {
                 />
                 <p className="text-xs text-muted-foreground">Normal: {'<'} 5 NTU</p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="temperature">Suhu (°C)</Label>
+                <Input
+                  id="temperature"
+                  type="number"
+                  step="0.1"
+                  placeholder="25.0"
+                  value={formData.temperature}
+                  onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="odor">Kondisi Bau *</Label>
-              <Select 
-                value={formData.odor} 
-                onValueChange={(value) => {
-                  setFormData({ ...formData, odor: value });
+              <Label htmlFor="ecoli">E. coli (MPN/100ml)</Label>
+              <Input
+                id="ecoli"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={formData.ecoli}
+                onChange={(e) => {
+                  setFormData({ ...formData, ecoli: e.target.value });
                   setTimeout(checkSafety, 100);
                 }}
-              >
-                <SelectTrigger id="odor">
-                  <SelectValue placeholder="Pilih kondisi..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Normal">Normal (Tidak Berbau)</SelectItem>
-                  <SelectItem value="Sedikit berbau">Sedikit Berbau</SelectItem>
-                  <SelectItem value="Berbau keras">Berbau Keras</SelectItem>
-                </SelectContent>
-              </Select>
+              />
+              <p className="text-xs text-muted-foreground">Normal: 0</p>
             </div>
 
             <div className="space-y-2">
@@ -167,24 +254,28 @@ export default function NewInspectionPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="photo">Foto Bukti</Label>
+              <Label>Foto Bukti</Label>
               <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
                 <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                 <Input
                   id="photo"
                   type="file"
                   accept="image/*"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setFormData({ ...formData, photo: e.target.files[0] });
-                      toast.success("Foto berhasil dipilih");
+                    if (e.target.files) {
+                      const files = Array.from(e.target.files);
+                      // For now, just store filenames as strings
+                      const photoUrls = files.map(file => `/uploads/${file.name}`);
+                      setFormData({ ...formData, photos: photoUrls });
+                      toast.success(`${files.length} foto berhasil dipilih`);
                     }
                   }}
                 />
                 <label htmlFor="photo" className="cursor-pointer">
                   <p className="text-sm text-muted-foreground">
-                    {formData.photo ? formData.photo.name : "Klik untuk unggah foto air"}
+                    {formData.photos.length > 0 ? `${formData.photos.length} foto dipilih` : "Klik untuk unggah foto air"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
                 </label>
@@ -195,8 +286,12 @@ export default function NewInspectionPage() {
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Batal
             </Button>
-            <Button type="submit">
-              <Save className="mr-2 h-4 w-4" />
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
               Simpan Inspeksi
             </Button>
           </CardFooter>

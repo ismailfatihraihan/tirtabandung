@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,81 +8,73 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Eye, Edit, Trash2, TrendingUp } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Loader2, RefreshCw } from "lucide-react";
 import type { Inspection } from "@/lib/types/database";
 
-// Mock data
-const mockInspections: Inspection[] = [
-  {
-    _id: "1",
-    inspector_id: "user1",
-    water_point_id: "wp1",
-    timestamp: "2024-12-29T10:30:00",
-    parameters: {
-      ph_level: 7.2,
-      turbidity: 3.5,
-      odor: "Normal"
-    },
-    evidence: {
-      photo_url: "/uploads/inspection1.jpg",
-      notes: "Air jernih, tidak berbau"
-    },
-    status: "Safe"
-  },
-  {
-    _id: "2",
-    inspector_id: "user2",
-    water_point_id: "wp1",
-    timestamp: "2024-12-28T14:20:00",
-    parameters: {
-      ph_level: 6.8,
-      turbidity: 5.2,
-      odor: "Sedikit berbau"
-    },
-    evidence: {
-      photo_url: "/uploads/inspection2.jpg",
-      notes: "Perlu monitoring lebih lanjut"
-    },
-    status: "Warning"
-  },
-  {
-    _id: "3",
-    inspector_id: "user3",
-    water_point_id: "wp2",
-    timestamp: "2024-12-27T09:15:00",
-    parameters: {
-      ph_level: 8.5,
-      turbidity: 12.0,
-      odor: "Berbau keras"
-    },
-    evidence: {
-      photo_url: "/uploads/inspection3.jpg",
-      notes: "Air keruh dan berbau, tidak layak konsumsi"
-    },
-    status: "Unsafe"
-  }
-];
+interface ApiInspection extends Inspection {
+  water_point_name?: string;
+  inspector_name?: string;
+}
 
 export default function InspectionsPage() {
   const router = useRouter();
+  const [inspections, setInspections] = useState<ApiInspection[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
-  const filteredInspections = mockInspections.filter(inspection => {
-    const matchesTab = activeTab === "all" || 
-                      (activeTab === "safe" && inspection.status === "Safe") ||
-                      (activeTab === "warning" && inspection.status === "Warning") ||
-                      (activeTab === "unsafe" && inspection.status === "Unsafe");
+  useEffect(() => {
+    fetchInspections();
+  }, []);
+
+  const fetchInspections = async () => {
+    try {
+      const response = await fetch('/api/inspections');
+      if (response.ok) {
+        const data = await response.json();
+        setInspections(data.data);
+      } else {
+        console.error('Failed to fetch inspections:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Failed to fetch inspections:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredInspections = inspections.filter(inspection => {
+    const matchesTab = activeTab === "all" ||
+                       (activeTab === "aman" && inspection.status === "Aman") ||
+                       (activeTab === "perlu-perhatian" && inspection.status === "Perlu Perhatian") ||
+                       (activeTab === "berbahaya" && inspection.status === "Berbahaya");
     return matchesTab;
   });
 
   const getStatusBadge = (status: Inspection['status']) => {
     const variants: Record<Inspection['status'], { variant: 'default' | 'secondary' | 'destructive', className: string }> = {
-      'Safe': { variant: 'default', className: 'bg-green-500' },
-      'Warning': { variant: 'secondary', className: 'bg-yellow-500' },
-      'Unsafe': { variant: 'destructive', className: 'bg-red-500' }
+      'Aman': { variant: 'default', className: 'bg-green-500' },
+      'Perlu Perhatian': { variant: 'secondary', className: 'bg-yellow-500' },
+      'Berbahaya': { variant: 'destructive', className: 'bg-red-500' }
     };
     return <Badge variant={variants[status].variant} className={variants[status].className}>{status}</Badge>;
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Apakah Anda yakin ingin menghapus inspeksi ini?')) {
+      try {
+        const response = await fetch(`/api/inspections/${id}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          setInspections(inspections.filter(i => i._id !== id));
+        } else {
+          console.error('Failed to delete inspection:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('Failed to delete inspection:', error);
+      }
+    }
   };
 
   return (
@@ -93,10 +85,16 @@ export default function InspectionsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Inspeksi Kualitas Air</h1>
           <p className="text-muted-foreground">Data berkala hasil pengecekan laboratorium</p>
         </div>
-        <Button onClick={() => router.push('/inspections/new')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Input Hasil Lab
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => { setLoading(true); fetchInspections(); }}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button onClick={() => router.push('/inspections/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Input Hasil Lab
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -106,7 +104,7 @@ export default function InspectionsPage() {
             <CardTitle className="text-sm font-medium">Total Inspeksi</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockInspections.length}</div>
+            <div className="text-2xl font-bold">{inspections.length}</div>
             <p className="text-xs text-muted-foreground">Bulan ini</p>
           </CardContent>
         </Card>
@@ -116,17 +114,17 @@ export default function InspectionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {mockInspections.filter(i => i.status === 'Safe').length}
+              {inspections.filter(i => i.status === 'Aman').length}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Peringatan</CardTitle>
+            <CardTitle className="text-sm font-medium">Perlu Perhatian</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {mockInspections.filter(i => i.status === 'Warning').length}
+              {inspections.filter(i => i.status === 'Perlu Perhatian').length}
             </div>
           </CardContent>
         </Card>
@@ -136,7 +134,7 @@ export default function InspectionsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {mockInspections.filter(i => i.status === 'Unsafe').length}
+              {inspections.filter(i => i.status === 'Berbahaya').length}
             </div>
           </CardContent>
         </Card>
@@ -145,92 +143,92 @@ export default function InspectionsPage() {
       {/* Data Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Riwayat Inspeksi</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => router.push('/inspections/trends')}>
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Lihat Grafik Tren
-            </Button>
-          </div>
+          <CardTitle>Riwayat Inspeksi</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="all">Semua</TabsTrigger>
-              <TabsTrigger value="safe">Aman</TabsTrigger>
-              <TabsTrigger value="warning">Peringatan</TabsTrigger>
-              <TabsTrigger value="unsafe">Berbahaya</TabsTrigger>
+              <TabsTrigger value="aman">Aman</TabsTrigger>
+              <TabsTrigger value="perlu-perhatian">Perlu Perhatian</TabsTrigger>
+              <TabsTrigger value="berbahaya">Berbahaya</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Titik Air</TableHead>
-                    <TableHead>pH</TableHead>
-                    <TableHead>Kekeruhan</TableHead>
-                    <TableHead>Bau</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Inspektur</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInspections.length === 0 ? (
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground">
-                        Tidak ada data ditemukan
-                      </TableCell>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead>Titik Air</TableHead>
+                      <TableHead>pH</TableHead>
+                      <TableHead>TDS</TableHead>
+                      <TableHead>Kekeruhan</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Inspektur</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredInspections.map((inspection) => (
-                      <TableRow key={inspection._id}>
-                        <TableCell>
-                          {new Date(inspection.timestamp).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </TableCell>
-                        <TableCell className="font-medium">Titik {inspection.water_point_id}</TableCell>
-                        <TableCell>{inspection.parameters.ph_level}</TableCell>
-                        <TableCell>{inspection.parameters.turbidity} NTU</TableCell>
-                        <TableCell>{inspection.parameters.odor}</TableCell>
-                        <TableCell>{getStatusBadge(inspection.status)}</TableCell>
-                        <TableCell>User {inspection.inspector_id}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => router.push(`/inspections/${inspection._id}`)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => router.push(`/inspections/${inspection._id}/edit`)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {/* Handle delete */}}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInspections.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
+                          Tidak ada data ditemukan
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      filteredInspections.map((inspection) => (
+                        <TableRow key={inspection._id}>
+                          <TableCell>
+                            {new Date(inspection.date).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </TableCell>
+                          <TableCell className="font-medium">{inspection.water_point_name || `Titik ${inspection.water_point_id}`}</TableCell>
+                          <TableCell>{inspection.parameters.ph}</TableCell>
+                          <TableCell>{inspection.parameters.tds} ppm</TableCell>
+                          <TableCell>{inspection.parameters.turbidity} NTU</TableCell>
+                          <TableCell>{getStatusBadge(inspection.status)}</TableCell>
+                          <TableCell>{inspection.inspector_name || `User ${inspection.inspector_id}`}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => router.push(`/inspections/${inspection._id}`)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => router.push(`/inspections/${inspection._id}/edit`)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(inspection._id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

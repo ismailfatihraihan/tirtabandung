@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Edit, Clock, User, MapPin, AlertCircle, Shield } from "lucide-react"
+import { ArrowLeft, Edit, Clock, User, MapPin, AlertCircle, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 import type { Issue } from "@/lib/types/database"
 
@@ -92,7 +91,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
       {/* Admin Only Badge for Update Actions */}
       {isAdmin && (
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center gap-2 text-sm">
-          <Shield className="h-4 w-4 text-purple-600" />
+          <ShieldCheck className="h-4 w-4 text-purple-600" />
           <p className="text-purple-900">
             <span className="font-semibold">Admin:</span> Anda dapat mengubah status dan menandai laporan sebagai selesai atau invalid
           </p>
@@ -172,17 +171,12 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status Baru</label>
-                <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Issue['status'])}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Perlu Disurvei">Perlu Disurvei</SelectItem>
-                    <SelectItem value="Sedang Diperbaiki">Sedang Diperbaiki</SelectItem>
-                    <SelectItem value="Selesai">Selesai</SelectItem>
-                  </SelectContent>
-              </Select>
-            </div>
+                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as Issue['status'])} className="border rounded px-3 py-2">
+                  <option value="Perlu Disurvei">Perlu Disurvei</option>
+                  <option value="Sedang Diperbaiki">Sedang Diperbaiki</option>
+                  <option value="Selesai">Selesai</option>
+                </select>
+              </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Catatan Tindakan</label>
