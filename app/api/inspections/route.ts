@@ -23,10 +23,10 @@ const inspectionSchema = z.object({
 function serialize(inspection: any) {
   return {
     _id: inspection._id.toString(),
-    water_point_id: inspection.water_point_id._id ? inspection.water_point_id._id.toString() : inspection.water_point_id.toString(),
-    inspector_id: inspection.inspector_id._id ? inspection.inspector_id._id.toString() : inspection.inspector_id.toString(),
-    water_point_name: inspection.water_point_id?.name || null,
-    inspector_name: inspection.inspector_id?.name || null,
+    water_point_id: inspection.water_point_id?._id ? inspection.water_point_id._id.toString() : null,
+    inspector_id: inspection.inspector_id?._id ? inspection.inspector_id._id.toString() : null,
+    water_point_name: inspection.water_point_id?.name || 'Tidak Ada',
+    inspector_name: inspection.inspector_id?.name || 'Tidak Ada',
     date: inspection.date,
     parameters: inspection.parameters,
     photos: inspection.photos || [],

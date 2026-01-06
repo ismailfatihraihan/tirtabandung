@@ -1,107 +1,179 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { TrendingDown, TrendingUp } from "lucide-react"
+import { Area, ComposedChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis } from "recharts"
+import { Loader2 } from "lucide-react"
 
-const chartData = [
-  { month: "Jan", ecoli: 450, diare: 230, safe: 350 },
-  { month: "Feb", ecoli: 300, diare: 221, safe: 350 },
-  { month: "Mar", ecoli: 200, diare: 229, safe: 350 },
-  { month: "Apr", ecoli: 278, diare: 200, safe: 350 },
-  { month: "May", ecoli: 189, diare: 220, safe: 350 },
-  { month: "Jun", ecoli: 239, diare: 180, safe: 350 },
-]
+type ChartRow = {
+  month: string
+  turbidity: number
+  ecoli: number
+  safe: number
+  count: number
+}
+
+const SAFE_TURBIDITY = 5 // NTU, panduan umum
 
 const chartConfig = {
-  ecoli: {
-    label: "E.Coli (CFU/100ml)",
+  turbidity: {
+    label: "Kekeruhan (NTU)",
     color: "hsl(var(--chart-1))",
   },
-  diare: {
-    label: "Kasus Diare",
+  ecoli: {
+    label: "E.Coli (CFU/100ml)",
     color: "hsl(var(--chart-2))",
-  },
-  safe: {
-    label: "Batas Aman",
-    color: "hsl(var(--muted))",
   },
 } satisfies ChartConfig
 
 export function WaterQualityChart() {
-  const trend = ((chartData[5].ecoli - chartData[0].ecoli) / chartData[0].ecoli * 100).toFixed(1)
-  const isDecreasing = Number(trend) < 0
+  const [data, setData] = useState<ChartRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchInspections = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const res = await fetch("/api/inspections", { cache: "no-store" })
+        if (!res.ok) throw new Error("Failed to fetch inspections")
+        const json = await res.json()
+        const list = Array.isArray(json?.data) ? json.data : []
+
+        const buckets = new Map<string, { turbidity: number; ecoli: number; count: number }>()
+        list.forEach((item: any) => {
+          const d = item.date ? new Date(item.date) : null
+          if (!d || Number.isNaN(d.getTime())) return
+          const key = `${d.getFullYear()}-${d.getMonth()}`
+          const bucket = buckets.get(key) || { turbidity: 0, ecoli: 0, count: 0 }
+          bucket.turbidity += Number(item.parameters?.turbidity ?? 0)
+          bucket.ecoli += Number(item.parameters?.ecoli ?? 0)
+          bucket.count += 1
+          buckets.set(key, bucket)
+        })
+
+        // keep last 6 months sorted ascending
+        const sortedKeys = Array.from(buckets.keys()).sort((a, b) => {
+          const [ay, am] = a.split("-").map(Number)
+          const [by, bm] = b.split("-").map(Number)
+          return ay === by ? am - bm : ay - by
+        }).slice(-6)
+
+        const rows: ChartRow[] = sortedKeys.map((key) => {
+          const [y, m] = key.split("-").map(Number)
+          const bucket = buckets.get(key)!
+          return {
+            month: new Date(y, m, 1).toLocaleDateString("id-ID", { month: "short" }),
+            turbidity: bucket.count ? Number((bucket.turbidity / bucket.count).toFixed(2)) : 0,
+            ecoli: bucket.count ? Number((bucket.ecoli / bucket.count).toFixed(2)) : 0,
+            safe: SAFE_TURBIDITY,
+            count: bucket.count
+          }
+        })
+
+        setData(rows)
+      } catch (err) {
+        console.error("water-quality chart error", err)
+        setError("Gagal memuat data inspeksi")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchInspections()
+  }, [])
+
+  const trendText = useMemo(() => {
+    if (data.length < 2) return null
+    const first = data[0].turbidity
+    const last = data[data.length - 1].turbidity
+    if (first === 0) return null
+    const delta = ((last - first) / first) * 100
+    return `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}% kekeruhan vs awal`}
+  , [data])
+
+  const sampleInfo = useMemo(() => {
+    if (!data.length) return null
+    const total = data.reduce((acc, row) => acc + row.count, 0)
+    const avg = total / data.length
+    return `${total} sampel (${avg.toFixed(1)}/bulan)`
+  }, [data])
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Tren Kualitas Air & Kesehatan</span>
-          <div className={`flex items-center gap-1 text-sm font-normal ${isDecreasing ? 'text-green-600' : 'text-red-600'}`}>
-            {isDecreasing ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
-            {Math.abs(Number(trend))}% vs Jan
-          </div>
+          <span>Tren Kualitas Air</span>
+          <div className="text-xs text-muted-foreground">Rata-rata bulanan (maks 6 bulan)</div>
         </CardTitle>
         <CardDescription>
-          Monitoring bakteri E.Coli dan korelasi dengan kasus diare
+          Kekeruhan & E.Coli berbasis hasil inspeksi lapangan
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="fillEcoli" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-ecoli)" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="var(--color-ecoli)" stopOpacity={0.1}/>
-              </linearGradient>
-              <linearGradient id="fillDiare" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-diare)" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="var(--color-diare)" stopOpacity={0.1}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              className="text-xs"
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              className="text-xs"
-            />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Area
-              dataKey="safe"
-              type="monotone"
-              fill="var(--color-safe)"
-              fillOpacity={0.2}
-              stroke="var(--color-safe)"
-              strokeDasharray="5 5"
-              strokeWidth={2}
-            />
-            <Area
-              dataKey="ecoli"
-              type="monotone"
-              fill="url(#fillEcoli)"
-              fillOpacity={0.4}
-              stroke="var(--color-ecoli)"
-              strokeWidth={2}
-            />
-            <Area
-              dataKey="diare"
-              type="monotone"
-              fill="url(#fillDiare)"
-              fillOpacity={0.4}
-              stroke="var(--color-diare)"
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ChartContainer>
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Memuat data...</div>
+        ) : error ? (
+          <div className="text-sm text-red-600">{error}</div>
+        ) : data.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Belum ada data inspeksi untuk ditampilkan.</div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <ComposedChart data={data}>
+              <defs>
+                <linearGradient id="fillTurbidity" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-turbidity)" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="var(--color-turbidity)" stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} className="text-xs" />
+              <YAxis
+                yAxisId="left"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                className="text-xs"
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                className="text-xs"
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Area
+                yAxisId="left"
+                dataKey="turbidity"
+                type="monotone"
+                fill="url(#fillTurbidity)"
+                fillOpacity={0.4}
+                stroke="var(--color-turbidity)"
+                strokeWidth={2}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="ecoli"
+                stroke="var(--color-ecoli)"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+              <ReferenceLine yAxisId="right" y={100} stroke="#ef4444" strokeDasharray="4 4" label="Batas Aman" />
+            </ComposedChart>
+          </ChartContainer>
+        )}
+        {trendText && !loading && !error && data.length > 0 && (
+          <div className="mt-3 text-xs text-muted-foreground">{trendText}</div>
+        )}
+        {sampleInfo && !loading && !error && data.length > 0 && (
+          <div className="text-xs text-muted-foreground">{sampleInfo}</div>
+        )}
       </CardContent>
     </Card>
   )

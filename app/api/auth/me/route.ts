@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
     const decoded = jwt.verify(token, JWT_SECRET) as {
       userId: string
       email: string
-      role: string
     }
 
     await dbConnect()
@@ -48,9 +47,7 @@ export async function GET(request: NextRequest) {
       id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
       phone: user.phone,
-      district: user.district,
       address: user.address,
       is_active: user.is_active,
       created_at: user.created_at

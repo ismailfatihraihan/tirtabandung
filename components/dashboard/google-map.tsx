@@ -1,334 +1,249 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Droplet, AlertTriangle, CheckCircle } from "lucide-react"
+import type { WaterPoint } from "@/lib/types/database"
+import { Droplet, MapPin } from "lucide-react"
+import "leaflet/dist/leaflet.css"
 
-// Water monitoring points in Bandung area
-const monitoringPoints = [
-  {
-    id: 1,
-    name: "Sumur Bor Cibaduyut",
-    lat: -6.9575,
-    lng: 107.6349,
-    status: "safe",
-    ph: 7.2,
-    turbidity: "Low",
-    ecoli: 0,
-    district: "Bandung Kidul",
-  },
-  {
-    id: 2,
-    name: "Reservoir Dago",
-    lat: -6.8564,
-    lng: 107.6136,
-    status: "safe",
-    ph: 7.1,
-    turbidity: "Low",
-    ecoli: 0,
-    district: "Coblong",
-  },
-  {
-    id: 3,
-    name: "Instalasi Bojongsoang",
-    lat: -6.9841,
-    lng: 107.6595,
-    status: "warning",
-    ph: 6.8,
-    turbidity: "Medium",
-    ecoli: 45,
-    district: "Bandung Kidul",
-  },
-  {
-    id: 4,
-    name: "Sumur Sekeloa",
-    lat: -6.8948,
-    lng: 107.6049,
-    status: "critical",
-    ph: 6.2,
-    turbidity: "High",
-    ecoli: 180,
-    district: "Coblong",
-  },
-  {
-    id: 5,
-    name: "PDAM Kiara Condong",
-    lat: -6.9289,
-    lng: 107.6546,
-    status: "warning",
-    ph: 6.9,
-    turbidity: "Medium",
-    ecoli: 52,
-    district: "Batununggal",
-  },
-]
+type DashboardPoint = {
+  id: string
+  name: string
+  status: WaterPoint["status"]
+  location: { lat: number; long: number; address?: string; sub_district?: string; district?: string | null }
+  type?: WaterPoint["type"]
+  last_maintained?: string | Date | null
+}
 
-const statusConfig = {
-  safe: { 
-    color: "bg-green-500", 
-    label: "Aman", 
-    icon: CheckCircle,
-    textColor: "text-green-700",
-    bgLight: "bg-green-50",
-    borderColor: "border-green-200"
-  },
-  warning: { 
-    color: "bg-yellow-500", 
-    label: "Peringatan", 
-    icon: AlertTriangle,
-    textColor: "text-yellow-700",
-    bgLight: "bg-yellow-50",
-    borderColor: "border-yellow-200"
-  },
-  critical: { 
-    color: "bg-red-500", 
-    label: "Kritis", 
-    icon: AlertTriangle,
-    textColor: "text-red-700",
-    bgLight: "bg-red-50",
-    borderColor: "border-red-200"
-  },
+const statusMeta: Record<WaterPoint["status"], { label: string; color: string; hex: string; soft: string }> = {
+  Active: { label: "Aktif", color: "text-green-700", hex: "#22c55e", soft: "bg-green-50" },
+  "Under Maintenance": { label: "Maintenance", color: "text-yellow-700", hex: "#eab308", soft: "bg-yellow-50" },
+  Inactive: { label: "Tidak Aktif", color: "text-red-700", hex: "#ef4444", soft: "bg-red-50" }
 }
 
 export function GoogleMapComponent() {
-  const [selectedPoint, setSelectedPoint] = useState<typeof monitoringPoints[0] | null>(null)
-  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null)
+  const [points, setPoints] = useState<DashboardPoint[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Calculate center of Bandung
-  const centerLat = -6.9175
-  const centerLng = 107.6191
+  const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<any>(null)
+  const markersLayerRef = useRef<any>(null)
 
-  // Calculate map bounds
-  const latRange = 0.15
-  const lngRange = 0.08
-  const minLat = centerLat - latRange / 2
-  const maxLat = centerLat + latRange / 2
-  const minLng = centerLng - lngRange / 2
-  const maxLng = centerLng + lngRange / 2
+  const counts = useMemo(() => {
+    return points.reduce(
+      (acc, p) => {
+        acc.total += 1
+        acc[p.status] += 1
+        return acc
+      },
+      { total: 0, Active: 0, "Under Maintenance": 0, Inactive: 0 }
+    )
+  }, [points])
 
-  // Convert lat/lng to SVG coordinates
-  const latToY = (lat: number) => {
-    return ((maxLat - lat) / (maxLat - minLat)) * 100
-  }
+  useEffect(() => {
+    const fetchPoints = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch("/api/water-points?includeInactive=true", { cache: "no-store" })
+        if (!res.ok) throw new Error("Failed to fetch")
+        const json = await res.json()
+        const normalized: DashboardPoint[] = (json?.data || []).map((wp: any) => ({
+          id: wp.id || wp._id?.toString?.() || wp._id || crypto.randomUUID(),
+          name: wp.name,
+          status: wp.status,
+          location: {
+            lat: Number(wp.location?.lat),
+            long: Number(wp.location?.long),
+            address: wp.location?.address,
+            sub_district: wp.location?.sub_district,
+            district: wp.location?.district ?? null
+          },
+          type: wp.type,
+          last_maintained: wp.last_maintained ?? null
+        }))
+        setPoints(normalized)
+        setSelectedId((prev) => (prev && normalized.some((p) => p.id === prev) ? prev : normalized[0]?.id || null))
+      } catch (err) {
+        console.error("dashboard map fetch error", err)
+        setError("Gagal memuat titik air")
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const lngToX = (lng: number) => {
-    return ((lng - minLng) / (maxLng - minLng)) * 100
-  }
+    fetchPoints()
+  }, [])
+
+  useEffect(() => {
+    const initMap = async () => {
+      if (!mapRef.current) return
+      if (mapInstanceRef.current) return
+      // Handle cases where Leaflet attaches _leaflet_id during hot reload/strict mode
+      if ((mapRef.current as any)._leaflet_id) {
+        try {
+          const L = (await import("leaflet")).default
+          const existing = L.map(mapRef.current)
+          existing.remove()
+        } catch (_) {
+          // Ignore cleanup errors
+        }
+        (mapRef.current as any)._leaflet_id = null
+      }
+      const L = (await import("leaflet")).default
+      const map = L.map(mapRef.current, {
+        minZoom: 11,
+        maxZoom: 18,
+        maxBounds: [
+          [-7.2, 107.45], // Southwest (Bandung area bounds)
+          [-6.75, 107.75] // Northeast
+        ],
+        maxBoundsViscosity: 0.75
+      }).setView([-6.9175, 107.6191], 12)
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors"
+      }).addTo(map)
+      mapInstanceRef.current = map
+    }
+
+    initMap()
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const renderMarkers = async () => {
+      if (!mapInstanceRef.current) return
+      const L = (await import("leaflet")).default
+      const map = mapInstanceRef.current
+
+      if (markersLayerRef.current) {
+        markersLayerRef.current.clearLayers()
+      } else {
+        markersLayerRef.current = L.layerGroup().addTo(map)
+      }
+
+      const markers: any[] = []
+
+      points.forEach((point) => {
+        if (!point.location?.lat || !point.location?.long) return
+        const meta = statusMeta[point.status]
+        const icon = L.divIcon({
+          className: "dashboard-marker",
+          html: `<div style="background:${meta.hex}; width:16px; height:16px; border-radius:9999px; box-shadow:0 0 0 3px ${meta.hex}33; border:2px solid white"></div>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
+        })
+        const marker = L.marker([point.location.lat, point.location.long], { icon }).addTo(markersLayerRef.current)
+        marker.bindPopup(`<div style="font-weight:600">${point.name}</div><div style="color:#475569">${meta.label}</div>`)
+        marker.on("click", () => setSelectedId(point.id))
+        markers.push(marker)
+      })
+
+      if (markers.length) {
+        const group = L.featureGroup(markers)
+        map.fitBounds(group.getBounds().pad(0.2))
+      } else {
+        map.setView([-6.9175, 107.6191], 12)
+      }
+    }
+
+    renderMarkers()
+  }, [points])
+
+  useEffect(() => {
+    const focusSelected = async () => {
+      if (!selectedId || !mapInstanceRef.current) return
+      const point = points.find((p) => p.id === selectedId)
+      if (point) {
+        mapInstanceRef.current.setView([point.location.lat, point.location.long], 14)
+      }
+    }
+
+    focusSelected()
+  }, [selectedId, points])
+
+  const selectedPoint = useMemo(() => points.find((p) => p.id === selectedId) || null, [points, selectedId])
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />
-            Peta Distribusi Geografis - Kualitas Air Bandung
+            Peta Titik Air (Live)
           </CardTitle>
-          <div className="flex gap-2">
-            <div className="flex items-center gap-1 text-xs">
-              <div className="h-3 w-3 rounded-full bg-green-500" />
-              <span>Aman</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs">
-              <div className="h-3 w-3 rounded-full bg-yellow-500" />
-              <span>Peringatan</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs">
-              <div className="h-3 w-3 rounded-full bg-red-500" />
-              <span>Kritis</span>
-            </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-green-500" />Aktif</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-yellow-500" />Maintenance</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-red-500" />Tidak Aktif</span>
           </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-sm text-slate-700">
+          <div className="rounded-md border border-slate-200 px-3 py-2 bg-slate-50">Total: {counts.total}</div>
+          <div className="rounded-md border border-slate-200 px-3 py-2 bg-green-50">Aktif: {counts.Active}</div>
+          <div className="rounded-md border border-slate-200 px-3 py-2 bg-yellow-50">Maint: {counts["Under Maintenance"]}</div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid md:grid-cols-3 gap-4">
-          {/* Map Section */}
-          <div className="md:col-span-2">
-            <div className="relative bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border border-slate-200 overflow-hidden">
-              <svg viewBox="0 0 100 100" className="w-full h-[400px]">
-                {/* Background grid */}
-                <defs>
-                  <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#e2e8f0" strokeWidth="0.5"/>
-                  </pattern>
-                </defs>
-                <rect width="100" height="100" fill="url(#grid)" />
-
-                {/* Bandung city area */}
-                <ellipse cx="50" cy="50" rx="35" ry="30" fill="#dbeafe" fillOpacity="0.3" stroke="#3b82f6" strokeWidth="0.5" strokeDasharray="2,2" />
-                
-                {/* District labels */}
-                <text x="50" y="25" fontSize="3" fill="#64748b" textAnchor="middle" fontWeight="500">
-                  Bandung Utara
-                </text>
-                <text x="50" y="75" fontSize="3" fill="#64748b" textAnchor="middle" fontWeight="500">
-                  Bandung Selatan
-                </text>
-
-                {/* Connection lines (optional) */}
-                {monitoringPoints.map((point, idx) => {
-                  if (idx < monitoringPoints.length - 1) {
-                    const nextPoint = monitoringPoints[idx + 1]
-                    return (
-                      <line
-                        key={`line-${point.id}`}
-                        x1={lngToX(point.lng)}
-                        y1={latToY(point.lat)}
-                        x2={lngToX(nextPoint.lng)}
-                        y2={latToY(nextPoint.lat)}
-                        stroke="#cbd5e1"
-                        strokeWidth="0.3"
-                        strokeDasharray="1,1"
-                        opacity="0.5"
-                      />
-                    )
-                  }
-                  return null
-                })}
-
-                {/* Monitoring points */}
-                {monitoringPoints.map((point) => {
-                  const config = statusConfig[point.status as keyof typeof statusConfig]
-                  const x = lngToX(point.lng)
-                  const y = latToY(point.lat)
+        {error ? (
+          <div className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-md p-3">{error}</div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <div className="rounded-lg border border-slate-200 overflow-hidden">
+                <div ref={mapRef} className="h-[380px] w-full" />
+              </div>
+            </div>
+            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Memuat titik air...</p>
+              ) : points.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Belum ada titik air.</p>
+              ) : (
+                points.map((point) => {
+                  const meta = statusMeta[point.status]
                   const isSelected = selectedPoint?.id === point.id
-                  const isHovered = hoveredPoint === point.id
-
                   return (
-                    <g key={point.id}>
-                      {/* Pulse animation for critical points */}
-                      {point.status === "critical" && (
-                        <circle cx={x} cy={y} r="4" className={config.color} opacity="0.3">
-                          <animate
-                            attributeName="r"
-                            from="4"
-                            to="8"
-                            dur="2s"
-                            repeatCount="indefinite"
-                          />
-                          <animate
-                            attributeName="opacity"
-                            from="0.3"
-                            to="0"
-                            dur="2s"
-                            repeatCount="indefinite"
-                          />
-                        </circle>
+                    <button
+                      key={point.id}
+                      onClick={() => setSelectedId(point.id)}
+                      className={`w-full text-left rounded-lg border px-3 py-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 ${
+                        isSelected ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <p className="font-semibold text-sm text-slate-900">{point.name}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Droplet className="h-3 w-3" />
+                            {point.location.sub_district || point.location.district || "-"}
+                          </p>
+                          {point.location.address && (
+                            <p className="text-xs text-slate-500 line-clamp-1">{point.location.address}</p>
+                          )}
+                        </div>
+                        <Badge className={`${meta.soft} ${meta.color} border border-transparent`}>{meta.label}</Badge>
+                      </div>
+                      {point.type && (
+                        <div className="mt-2 text-[11px] text-slate-600">{point.type}</div>
                       )}
-
-                      {/* Outer ring */}
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={isHovered || isSelected ? "5" : "4"}
-                        fill="white"
-                        stroke={config.color.replace('bg-', '#')}
-                        strokeWidth={isSelected ? "1" : "0.5"}
-                        style={{ transition: "all 0.2s" }}
-                      />
-
-                      {/* Inner dot */}
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={isHovered || isSelected ? "3.5" : "2.5"}
-                        className={config.color}
-                        style={{ 
-                          cursor: "pointer",
-                          transition: "all 0.2s"
-                        }}
-                        onMouseEnter={() => setHoveredPoint(point.id)}
-                        onMouseLeave={() => setHoveredPoint(null)}
-                        onClick={() => setSelectedPoint(point)}
-                      />
-
-                      {/* Label on hover or select */}
-                      {(isHovered || isSelected) && (
-                        <g>
-                          <rect
-                            x={x - 15}
-                            y={y - 10}
-                            width="30"
-                            height="6"
-                            fill="white"
-                            stroke="#e2e8f0"
-                            strokeWidth="0.2"
-                            rx="1"
-                          />
-                          <text
-                            x={x}
-                            y={y - 6}
-                            fontSize="2"
-                            fill="#1e293b"
-                            textAnchor="middle"
-                            fontWeight="600"
-                          >
-                            {point.name.split(' ')[0]}
-                          </text>
-                        </g>
+                      {point.last_maintained && (
+                        <div className="text-[11px] text-slate-500">Maint: {new Date(point.last_maintained).toLocaleDateString("id-ID")}</div>
                       )}
-                    </g>
+                    </button>
                   )
-                })}
-              </svg>
+                })
+              )}
             </div>
           </div>
-
-          {/* Details Panel */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <Droplet className="h-4 w-4 text-blue-600" />
-              Titik Monitoring ({monitoringPoints.length})
-            </h3>
-            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-2">
-              {monitoringPoints.map((point) => {
-                const config = statusConfig[point.status as keyof typeof statusConfig]
-                const Icon = config.icon
-                const isSelected = selectedPoint?.id === point.id
-
-                return (
-                  <div
-                    key={point.id}
-                    onClick={() => setSelectedPoint(point)}
-                    onMouseEnter={() => setHoveredPoint(point.id)}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      isSelected 
-                        ? `${config.bgLight} ${config.borderColor}` 
-                        : "bg-white border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{point.name}</div>
-                        <div className="text-xs text-muted-foreground">{point.district}</div>
-                      </div>
-                      <Badge className={`${config.color} text-white text-xs`}>
-                        {config.label}
-                      </Badge>
-                    </div>
-                    {isSelected && (
-                      <div className="mt-2 space-y-1 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">pH:</span>
-                          <span className="font-medium">{point.ph}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Kekeruhan:</span>
-                          <span className="font-medium">{point.turbidity}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">E.Coli:</span>
-                          <span className="font-medium">{point.ecoli} CFU/100ml</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   )

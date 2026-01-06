@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Droplets, MapPin, Activity, Users, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function Home() {
   const router = useRouter()
+  const { user, isLoading } = useAuth()
 
   useEffect(() => {
-    // Check if user is already logged in
-    const user = localStorage.getItem("user")
-    if (user) {
+    if (!isLoading && user) {
       router.push("/dashboard")
     }
-  }, [router])
+  }, [user, isLoading, router])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-50">

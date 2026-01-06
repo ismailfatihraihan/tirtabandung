@@ -19,8 +19,7 @@ export default function RegisterPage() {
     phone: "",
     password: "",
     confirmPassword: "",
-    role: "officer" as "admin" | "officer",
-    district: ""
+    address: ""
   })
   const [isLoading, setIsLoading] = useState(false)
 
@@ -50,8 +49,7 @@ export default function RegisterPage() {
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
-          role: formData.role,
-          district: formData.district || undefined
+          address: formData.address || undefined
         })
       })
 
@@ -73,7 +71,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-cyan-50 p-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
@@ -122,33 +120,8 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as "admin" | "officer" })}>
-                  <SelectTrigger id="role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="officer">Officer</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="district">Wilayah Tugas</Label>
-                <Input
-                  id="district"
-                  placeholder="Cibaduyut"
-                  value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"

@@ -8,35 +8,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Edit, Clock, User, MapPin, AlertCircle, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Edit, Clock, User, MapPin, AlertCircle, ShieldCheck, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { Issue } from "@/lib/types/database"
-
-const mockIssue: Issue = {
-  _id: "1",
-  reporter_id: "user1",
-  water_point_id: "wp1",
-  severity_level: "Critical",
-  title: "Pipa Bocor Besar",
-  description: "Terdapat kebocoran pipa utama di Jl. Cibaduyut. Air menyembur cukup tinggi dan menggenangi jalan. Perlu tindakan segera.",
-  status: "Perlu Disurvei",
-  created_at: "2024-12-29T08:00:00"
-}
 
 export default function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { isAdmin, isOfficer } = useAuth()
-  const [issue, setIssue] = useState(mockIssue)
+  const { isAdmin } = useAuth()
+  const [issue, setIssue] = useState<Issue | null>(null)
+  const [loading, setLoading] = useState(true)
   const [updateNote, setUpdateNote] = useState("")
-  const [newStatus, setNewStatus] = useState(issue.status)
+  const [newStatus, setNewStatus] = useState<Issue['status']>("Perlu Disurvei")
+  const [updating, setUpdating] = useState(false)
 
-  const getSeverityBadge = (severity: Issue['severity_level']) => {
+  useEffect(() => {
+    fetchIssue()
+  }, [id])
+
+  const fetchIssue = async () => {
+    try {
+      const response = await fetch(`/api/issues/${id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch issue')
+      }
+      const data = await response.json()
+      setIssue(data.data)
+      setNewStatus(data.data.status)
+    } catch (error) {
+      console.error('Error fetching issue:', error)
+      toast.error('Gagal memuat detail masalah')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getSeverityBadge = (severity: Issue['severity']) => {
     const colors = {
-      'Critical': 'bg-red-600',
-      'High': 'bg-orange-500',
-      'Medium': 'bg-yellow-500',
-      'Low': 'bg-blue-500'
+      'Kritis': 'bg-red-600',
+      'Tinggi': 'bg-orange-500',
+      'Sedang': 'bg-yellow-500',
+      'Rendah': 'bg-blue-500'
     }
     return <Badge className={colors[severity]}>{severity}</Badge>
   }
@@ -51,19 +63,88 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
     return <Badge className={colors[status]}>{status}</Badge>
   }
 
-  const handleUpdateStatus = () => {
-    // TODO: API call
-    console.log("Update status:", newStatus, "Note:", updateNote)
-    setIssue({ ...issue, status: newStatus as Issue['status'] })
-    toast.success("Status berhasil diperbarui!")
-    setUpdateNote("")
+  const handleUpdateStatus = async () => {
+    if (!issue) return
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/issues/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          // TODO: Add note to timeline or action tracking
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update status')
+      }
+
+      const data = await response.json()
+      setIssue(data.data)
+      toast.success("Status berhasil diperbarui!")
+      setUpdateNote("")
+    } catch (error) {
+      console.error('Error updating status:', error)
+      toast.error(error instanceof Error ? error.message : 'Gagal memperbarui status')
+    } finally {
+      setUpdating(false)
+    }
   }
 
-  const handleInvalidate = () => {
-    // TODO: API call
-    console.log("Marking as invalid")
-    setIssue({ ...issue, status: 'Invalid' })
-    toast.success("Laporan ditandai sebagai invalid")
+  const handleInvalidate = async () => {
+    if (!issue) return
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/issues/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'Invalid',
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to invalidate issue')
+      }
+
+      const data = await response.json()
+      setIssue(data.data)
+      toast.success("Laporan ditandai sebagai invalid")
+    } catch (error) {
+      console.error('Error invalidating issue:', error)
+      toast.error(error instanceof Error ? error.message : 'Gagal menandai sebagai invalid')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-center min-h-100">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!issue) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+        <div className="text-center">
+          <p className="text-muted-foreground">Masalah tidak ditemukan</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -81,7 +162,8 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         <div className="flex gap-2">
           {/* Only Admin can mark as invalid or resolve */}
           {isAdmin && issue.status !== 'Invalid' && (
-            <Button variant="destructive" onClick={handleInvalidate}>
+            <Button variant="destructive" onClick={handleInvalidate} disabled={updating}>
+              {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Tandai Invalid
             </Button>
           )}
@@ -98,16 +180,6 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      {/* Officer View Only Badge */}
-      {isOfficer && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2 text-sm">
-          <AlertCircle className="h-4 w-4 text-blue-600" />
-          <p className="text-blue-900">
-            <span className="font-semibold">Officer:</span> Anda dapat melihat detail laporan. Untuk update status, hubungi Admin
-          </p>
-        </div>
-      )}
-
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -118,7 +190,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
               <p className="text-sm text-muted-foreground mb-1">Status</p>
               <div className="flex gap-2">
                 {getStatusBadge(issue.status)}
-                {getSeverityBadge(issue.severity_level)}
+                {getSeverityBadge(issue.severity)}
               </div>
             </div>
             <Separator />
@@ -132,7 +204,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                 <MapPin className="h-4 w-4" />
                 Lokasi
               </p>
-              <p className="font-medium">Sumur Bor Cibaduyut</p>
+              <p className="font-medium">{issue.water_point_name || 'Unknown Location'}</p>
             </div>
             <Separator />
             <div>
@@ -140,7 +212,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                 <User className="h-4 w-4" />
                 Pelapor
               </p>
-              <p className="font-medium">User {issue.reporter_id}</p>
+              <p className="font-medium">{issue.reporter_name || `User ${issue.reported_by}`}</p>
             </div>
             <Separator />
             <div>
@@ -188,11 +260,13 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
               />
             </div>
 
-            <Button className="w-full" onClick={handleUpdateStatus}>
+            <Button className="w-full" onClick={handleUpdateStatus} disabled={updating}>
+              {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Simpan Update
             </Button>
           </CardContent>
         </Card>
+        )}
       </div>
 
       <Card>

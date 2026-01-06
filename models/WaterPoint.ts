@@ -59,4 +59,13 @@ WaterPointSchema.index({ 'location.sub_district': 1 })
 WaterPointSchema.index({ status: 1 })
 WaterPointSchema.index({ created_by: 1 })
 
+// Cascade delete: ketika water point dihapus, hapus semua issues dan inspections-nya
+WaterPointSchema.pre('deleteOne', { document: true }, async function() {
+  const Issue = mongoose.model('Issue')
+  const Inspection = mongoose.model('Inspection')
+  
+  await Issue.deleteMany({ water_point_id: this._id })
+  await Inspection.deleteMany({ water_point_id: this._id })
+})
+
 export default mongoose.models.WaterPoint || mongoose.model<IWaterPoint>('WaterPoint', WaterPointSchema)

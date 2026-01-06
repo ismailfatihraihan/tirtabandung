@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,27 +8,75 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Upload } from "lucide-react";
+import { ArrowLeft, Save, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import type { WaterPoint } from "@/lib/types/database";
 
 export default function NewIssuePage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     water_point_id: "",
-    severity_level: "",
+    category: "",
+    severity: "",
     title: "",
     description: "",
     photo: null as File | null
   });
+  const [waterPoints, setWaterPoints] = useState<WaterPoint[]>([]);
+  const [loadingWaterPoints, setLoadingWaterPoints] = useState(true);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchWaterPoints();
+  }, []);
+
+  const fetchWaterPoints = async () => {
+    try {
+      const response = await fetch('/api/water-points');
+      if (!response.ok) {
+        throw new Error('Failed to fetch water points');
+      }
+      const data = await response.json();
+      setWaterPoints(data.data);
+    } catch (error) {
+      console.error('Error fetching water points:', error);
+      toast.error('Gagal memuat data titik air');
+    } finally {
+      setLoadingWaterPoints(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // TODO: API call to save data
-    console.log("Form data:", formData);
-    
-    toast.success("Laporan masalah berhasil dibuat!");
-    router.push('/issues');
+
+    try {
+      const submitData = {
+        water_point_id: formData.water_point_id,
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        severity: formData.severity,
+        photos: formData.photo ? [formData.photo.name] : [] // TODO: Handle file upload properly
+      };
+
+      const response = await fetch('/api/issues', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submitData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create issue');
+      }
+
+      toast.success("Laporan masalah berhasil dibuat!");
+      router.push('/issues');
+    } catch (error) {
+      console.error('Error creating issue:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal membuat laporan masalah');
+    }
   };
 
   return (
@@ -52,35 +100,67 @@ export default function NewIssuePage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="water_point">Lokasi Titik Air *</Label>
-              <Select 
-                value={formData.water_point_id} 
+              <Select
+                value={formData.water_point_id}
                 onValueChange={(value) => setFormData({ ...formData, water_point_id: value })}
+                disabled={loadingWaterPoints}
               >
                 <SelectTrigger id="water_point">
-                  <SelectValue placeholder="Pilih lokasi..." />
+                  <SelectValue placeholder={loadingWaterPoints ? "Memuat titik air..." : "Pilih lokasi..."} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="wp1">Sumur Bor Cibaduyut</SelectItem>
-                  <SelectItem value="wp2">PDAM Dago Pakar</SelectItem>
-                  <SelectItem value="wp3">Sumur Gali Bojongsoang</SelectItem>
+                  {loadingWaterPoints ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Memuat...</span>
+                    </div>
+                  ) : waterPoints.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      Tidak ada titik air tersedia
+                    </div>
+                  ) : (
+                    waterPoints.map((wp) => (
+                      <SelectItem key={wp.id} value={wp.id}>
+                        {wp.name} - {wp.location.sub_district}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Kategori Masalah *</Label>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => setFormData({ ...formData, category: value })}
+              >
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Pilih kategori..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Kerusakan Fisik">Kerusakan Fisik</SelectItem>
+                  <SelectItem value="Kualitas Air">Kualitas Air</SelectItem>
+                  <SelectItem value="Operasional">Operasional</SelectItem>
+                  <SelectItem value="Lainnya">Lainnya</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="severity">Tingkat Keparahan *</Label>
-              <Select 
-                value={formData.severity_level} 
-                onValueChange={(value) => setFormData({ ...formData, severity_level: value })}
+              <Select
+                value={formData.severity}
+                onValueChange={(value) => setFormData({ ...formData, severity: value })}
               >
                 <SelectTrigger id="severity">
                   <SelectValue placeholder="Pilih tingkat..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Low">Low - Masalah minor</SelectItem>
-                  <SelectItem value="Medium">Medium - Perlu perhatian</SelectItem>
-                  <SelectItem value="High">High - Perlu tindakan segera</SelectItem>
-                  <SelectItem value="Critical">Critical - Darurat!</SelectItem>
+                  <SelectItem value="Rendah">Rendah - Masalah minor</SelectItem>
+                  <SelectItem value="Sedang">Sedang - Perlu perhatian</SelectItem>
+                  <SelectItem value="Tinggi">Tinggi - Perlu tindakan segera</SelectItem>
+                  <SelectItem value="Kritis">Kritis - Darurat!</SelectItem>
                 </SelectContent>
               </Select>
             </div>

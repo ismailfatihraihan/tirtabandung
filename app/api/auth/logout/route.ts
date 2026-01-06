@@ -12,9 +12,6 @@ export async function POST() {
 
     // Hapus cookie auth-token
     response.cookies.delete('auth-token')
-    
-    // Hapus cookie user-role
-    response.cookies.delete('user-role')
 
     return response
 

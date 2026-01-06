@@ -7,9 +7,7 @@ interface User {
   id: string
   name: string
   email: string
-  role: "admin" | "officer"
   phone?: string
-  district?: string
   address?: string
   is_active: boolean
   created_at: Date
@@ -74,21 +72,15 @@ export function useAuth() {
     }
   }
 
-  const isAdmin = user?.role === "admin"
-  const isOfficer = user?.role === "officer"
+  const isAdmin = true // Always admin in simplified app
 
   const requireAdmin = () => {
-    if (!isAdmin) {
-      router.push("/dashboard")
-      return false
-    }
-    return true
+    return true // No need to check, all users are admin
   }
 
   return {
     user,
     isAdmin,
-    isOfficer,
     isLoading,
     requireAdmin,
     logout,

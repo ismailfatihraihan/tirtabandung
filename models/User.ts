@@ -4,9 +4,7 @@ export interface IUser extends Document {
   name: string
   email: string
   password: string
-  role: 'admin' | 'officer'
   phone?: string
-  district?: string
   address?: string
   is_active: boolean
   created_at: Date
@@ -32,16 +30,7 @@ const UserSchema = new Schema<IUser>(
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters']
     },
-    role: {
-      type: String,
-      enum: ['admin', 'officer'],
-      required: [true, 'Role is required']
-    },
     phone: {
-      type: String,
-      trim: true
-    },
-    district: {
       type: String,
       trim: true
     },
@@ -61,7 +50,5 @@ const UserSchema = new Schema<IUser>(
 
 // Index untuk query cepat
 UserSchema.index({ email: 1 })
-UserSchema.index({ role: 1 })
-UserSchema.index({ district: 1 })
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema)

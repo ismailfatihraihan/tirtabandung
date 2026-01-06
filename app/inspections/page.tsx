@@ -146,7 +146,7 @@ export default function InspectionsPage() {
           <CardTitle>Riwayat Inspeksi</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} suppressHydrationWarning>
             <TabsList>
               <TabsTrigger value="all">Semua</TabsTrigger>
               <TabsTrigger value="aman">Aman</TabsTrigger>

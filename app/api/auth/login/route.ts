@@ -53,8 +53,7 @@ export async function POST(request: NextRequest) {
     const token = jwt.sign(
       {
         userId: user._id,
-        email: user.email,
-        role: user.role
+        email: user.email
       },
       JWT_SECRET,
       { expiresIn: '7d' } // Token berlaku 7 hari
@@ -65,9 +64,7 @@ export async function POST(request: NextRequest) {
       id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
       phone: user.phone,
-      district: user.district,
       address: user.address,
       is_active: user.is_active,
       created_at: user.created_at
@@ -84,14 +81,6 @@ export async function POST(request: NextRequest) {
     )
 
     response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7 // 7 hari
-    })
-
-    // Set user role cookie untuk middleware
-    response.cookies.set('user-role', user.role, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

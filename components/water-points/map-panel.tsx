@@ -55,6 +55,18 @@ export function WaterPointsMapPanel({
     const initMap = async () => {
       const L = (await import('leaflet')).default
       if (!mapRef.current || mapInstanceRef.current) return
+
+      // Guard against double-initialization when navigating back
+      if ((mapRef.current as any)._leaflet_id) {
+        try {
+          const existing = L.map(mapRef.current)
+          existing.remove()
+        } catch (_) {
+          // ignore
+        }
+        (mapRef.current as any)._leaflet_id = null
+      }
+
       const map = L.map(mapRef.current).setView([-6.9175, 107.6191], 12)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
@@ -76,7 +88,7 @@ export function WaterPointsMapPanel({
       if (!mapInstanceRef.current) return
       const map = mapInstanceRef.current
       // Clear existing markers
-      map.eachLayer(layer => {
+      map.eachLayer((layer: L.Layer) => {
         if (layer instanceof L.Marker) {
           map.removeLayer(layer)
         }
@@ -153,10 +165,10 @@ export function WaterPointsMapPanel({
           <div className="grid gap-4 md:grid-cols-3">
             <div className="md:col-span-2">
               <div className="rounded-lg border border-slate-200">
-                <div ref={mapRef} className="w-full h-[420px]" />
+                <div ref={mapRef} className="w-full h-105" />
               </div>
             </div>
-            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-105 overflow-y-auto pr-1">
               {points.map((point) => {
                 const meta = statusMeta[point.status]
                 const isSelected = selectedPoint?._id === point._id

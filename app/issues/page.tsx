@@ -1,82 +1,130 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { Issue } from "@/lib/types/database";
-
-// Mock data
-const mockIssues: Issue[] = [
-  {
-    _id: "1",
-    reporter_id: "user1",
-    water_point_id: "wp1",
-    severity_level: "Critical",
-    title: "Pipa Bocor Besar",
-    description: "Terdapat kebocoran pipa utama di Jl. Cibaduyut",
-    status: "Perlu Disurvei",
-    created_at: "2024-12-29T08:00:00"
-  },
-  {
-    _id: "2",
-    reporter_id: "user2",
-    water_point_id: "wp2",
-    severity_level: "High",
-    title: "Air Berbau Tidak Sedap",
-    description: "Warga melaporkan air PDAM berbau aneh",
-    status: "Sedang Diperbaiki",
-    created_at: "2024-12-28T10:30:00"
-  },
-  {
-    _id: "3",
-    reporter_id: "user3",
-    water_point_id: "wp3",
-    severity_level: "Medium",
-    title: "Sumur Tersumbat",
-    description: "Sumur tidak bisa menyedot air dengan baik",
-    status: "Selesai",
-    created_at: "2024-12-27T14:20:00",
-    updated_at: "2024-12-28T16:00:00"
-  }
-];
 
 export default function IssuesPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("perlu-disurvei");
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
-  const getIssuesByStatus = (status: Issue['status']) => {
-    return mockIssues.filter(issue => issue.status === status);
+  useEffect(() => {
+    fetchIssues();
+  }, []);
+
+  const fetchIssues = async () => {
+    try {
+      const response = await fetch('/api/issues');
+      if (!response.ok) {
+        throw new Error('Failed to fetch issues');
+      }
+      const data = await response.json();
+      setIssues(data.data);
+    } catch (error) {
+      console.error('Error fetching issues:', error);
+      toast.error('Gagal memuat data masalah');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getSeverityBadge = (severity: Issue['severity_level']) => {
+  const filteredIssues = issues.filter((issue) => {
+    const matchesSearch = searchTerm
+      ? `${issue.title} ${issue.description}`.toLowerCase().includes(searchTerm.toLowerCase())
+      : true;
+    const matchesSeverity = severityFilter === "all" ? true : issue.severity === severityFilter;
+    const matchesStatus = statusFilter === "all" ? true : issue.status === statusFilter;
+    return matchesSearch && matchesSeverity && matchesStatus;
+  });
+
+  const sortedIssues = [...filteredIssues].sort((a, b) => {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const handleStatusChange = async (issueId: string, status: Issue['status']) => {
+    setStatusUpdatingId(issueId);
+    try {
+      const res = await fetch('/api/issues', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issue_id: issueId, status })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to update status');
+      }
+
+      const updated = await res.json();
+      setIssues((prev) => prev.map((item) => (item._id === issueId ? { ...item, ...updated.data } : item)));
+      toast.success('Status berhasil diperbarui');
+    } catch (error) {
+      console.error('Error updating issue status:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal memperbarui status');
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
+  const getSeverityBadge = (severity: Issue['severity']) => {
     const colors = {
-      'Critical': 'bg-red-600',
-      'High': 'bg-orange-500',
-      'Medium': 'bg-yellow-500',
-      'Low': 'bg-blue-500'
+      'Kritis': 'bg-red-600',
+      'Tinggi': 'bg-orange-500',
+      'Sedang': 'bg-yellow-500',
+      'Rendah': 'bg-emerald-500'
     };
     return <Badge className={colors[severity]}>{severity}</Badge>;
   };
 
   const IssueCard = ({ issue }: { issue: Issue }) => (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/issues/${issue._id}`)}>
-      <CardHeader>
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="cursor-pointer" onClick={() => router.push(`/issues/${issue._id}`)}>
         <div className="flex items-start justify-between">
-          <div className="space-y-1 flex-1">
-            <CardTitle className="text-lg">{issue.title}</CardTitle>
-            <CardDescription>{issue.description}</CardDescription>
+          <div className="space-y-2 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="text-lg">{issue.title}</CardTitle>
+              {getSeverityBadge(issue.severity)}
+            </div>
+            <CardDescription className="line-clamp-2">{issue.description}</CardDescription>
           </div>
-          {getSeverityBadge(issue.severity_level)}
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Titik: {issue.water_point_id}</span>
-          <span>{new Date(issue.created_at).toLocaleDateString('id-ID')}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <div className="space-y-1">
+            <div><span className="font-medium text-foreground">Titik:</span> {issue.water_point_name || issue.water_point_id}</div>
+            <div><span className="font-medium text-foreground">Kategori:</span> {issue.category}</div>
+            <div><span className="font-medium text-foreground">Pelapor:</span> {issue.reporter_name || issue.reported_by}</div>
+          </div>
+          <div className="flex flex-col items-end gap-2 min-w-[180px]">
+            <Select
+              value={issue.status}
+              onValueChange={(value) => handleStatusChange(issue._id, value as Issue['status'])}
+            >
+              <SelectTrigger className="w-44" disabled={statusUpdatingId === issue._id}>
+                <SelectValue placeholder="Ubah status" />
+              </SelectTrigger>
+              <SelectContent align="end" onClick={(e) => e.stopPropagation()}>
+                <SelectItem value="Perlu Disurvei">Perlu Disurvei</SelectItem>
+                <SelectItem value="Sedang Diperbaiki">Sedang Diperbaiki</SelectItem>
+                <SelectItem value="Selesai">Selesai</SelectItem>
+                <SelectItem value="Invalid">Invalid</SelectItem>
+              </SelectContent>
+            </Select>
+            <span>{new Date(issue.created_at).toLocaleDateString('id-ID')}</span>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -96,109 +144,75 @@ export default function IssuesPage() {
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Masalah</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{mockIssues.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Perlu Survei</CardTitle>
-            <Clock className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {getIssuesByStatus('Perlu Disurvei').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dalam Perbaikan</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {getIssuesByStatus('Sedang Diperbaiki').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Selesai</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {getIssuesByStatus('Selesai').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Filters */}
+      <Card suppressHydrationWarning>
+        <CardContent className="pt-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            <Input
+              placeholder="Cari judul atau deskripsi..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="Perlu Disurvei">Perlu Disurvei</SelectItem>
+                <SelectItem value="Sedang Diperbaiki">Sedang Diperbaiki</SelectItem>
+                <SelectItem value="Selesai">Selesai</SelectItem>
+                <SelectItem value="Invalid">Invalid</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={severityFilter} onValueChange={setSeverityFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter keparahan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Keparahan</SelectItem>
+                <SelectItem value="Kritis">Kritis</SelectItem>
+                <SelectItem value="Tinggi">Tinggi</SelectItem>
+                <SelectItem value="Sedang">Sedang</SelectItem>
+                <SelectItem value="Rendah">Rendah</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("all");
+                setSeverityFilter("all");
+              }}
+            >
+              Reset Filter
+            </Button>
+            <Button variant="outline" onClick={fetchIssues} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Muat Ulang'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Kanban Board */}
-      <Card>
+      {/* Daftar Isu sederhana */}
+      <Card suppressHydrationWarning>
         <CardHeader>
-          <CardTitle>Kanban Board Penanganan</CardTitle>
-          <CardDescription>Kelola progres penanganan masalah</CardDescription>
+          <CardTitle>Daftar Laporan</CardTitle>
+          <CardDescription>Ringkas: judul, lokasi, status, severity</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="perlu-disurvei">
-                Perlu Disurvei ({getIssuesByStatus('Perlu Disurvei').length})
-              </TabsTrigger>
-              <TabsTrigger value="sedang-diperbaiki">
-                Sedang Diperbaiki ({getIssuesByStatus('Sedang Diperbaiki').length})
-              </TabsTrigger>
-              <TabsTrigger value="selesai">
-                Selesai ({getIssuesByStatus('Selesai').length})
-              </TabsTrigger>
-              <TabsTrigger value="invalid">
-                Invalid ({getIssuesByStatus('Invalid').length})
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="perlu-disurvei" className="space-y-4 mt-4">
-              {getIssuesByStatus('Perlu Disurvei').length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Tidak ada masalah</p>
-              ) : (
-                getIssuesByStatus('Perlu Disurvei').map(issue => (
-                  <IssueCard key={issue._id} issue={issue} />
-                ))
-              )}
-            </TabsContent>
-
-            <TabsContent value="sedang-diperbaiki" className="space-y-4 mt-4">
-              {getIssuesByStatus('Sedang Diperbaiki').length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Tidak ada masalah</p>
-              ) : (
-                getIssuesByStatus('Sedang Diperbaiki').map(issue => (
-                  <IssueCard key={issue._id} issue={issue} />
-                ))
-              )}
-            </TabsContent>
-
-            <TabsContent value="selesai" className="space-y-4 mt-4">
-              {getIssuesByStatus('Selesai').length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Tidak ada masalah</p>
-              ) : (
-                getIssuesByStatus('Selesai').map(issue => (
-                  <IssueCard key={issue._id} issue={issue} />
-                ))
-              )}
-            </TabsContent>
-
-            <TabsContent value="invalid" className="space-y-4 mt-4">
-              <p className="text-center text-muted-foreground py-8">Tidak ada masalah</p>
-            </TabsContent>
-          </Tabs>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Memuat data...</span>
+            </div>
+          ) : sortedIssues.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6">Tidak ada laporan</p>
+          ) : (
+            sortedIssues.map((issue) => (
+              <IssueCard key={issue._id} issue={issue} />
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

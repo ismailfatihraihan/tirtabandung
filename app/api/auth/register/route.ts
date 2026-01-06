@@ -8,28 +8,12 @@ export async function POST(request: NextRequest) {
     await dbConnect()
     
     const body = await request.json()
-    const { name, email, password, role, phone, district, address } = body
+    const { name, email, password, phone, address } = body
 
     // Validasi input
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !password) {
       return NextResponse.json(
-        { error: 'Nama, email, password, dan role harus diisi' },
-        { status: 400 }
-      )
-    }
-
-    // Validasi role
-    if (!['admin', 'officer'].includes(role)) {
-      return NextResponse.json(
-        { error: 'Role tidak valid. Pilih admin atau officer' },
-        { status: 400 }
-      )
-    }
-
-    // Validasi district untuk officer
-    if (role === 'officer' && !district) {
-      return NextResponse.json(
-        { error: 'District harus diisi untuk role officer' },
+        { error: 'Nama, email, dan password harus diisi' },
         { status: 400 }
       )
     }
@@ -55,14 +39,12 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Buat user baru
+    // Buat user baru (default = admin)
     const newUser = await User.create({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role,
       phone: phone || undefined,
-      district: district || undefined,
       address: address || undefined,
       is_active: true
     })
@@ -72,9 +54,7 @@ export async function POST(request: NextRequest) {
       id: newUser._id,
       name: newUser.name,
       email: newUser.email,
-      role: newUser.role,
       phone: newUser.phone,
-      district: newUser.district,
       address: newUser.address,
       is_active: newUser.is_active,
       created_at: newUser.created_at

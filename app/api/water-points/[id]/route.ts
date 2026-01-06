@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import dbConnect from '@/lib/mongodb'
 import WaterPoint from '@/models/WaterPoint'
+import Issue from '@/models/Issue'
+import Inspection from '@/models/Inspection'
 import type { WaterPointStatus } from '@/models/WaterPoint'
 
 const updateSchema = z.object({
@@ -95,18 +97,20 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     await dbConnect()
     const { id } = await params
-    const wp = await WaterPoint.findById(id)
-    if (!wp) {
+    
+    // Manually cascade delete (explicit delete of related docs)
+    await Issue.deleteMany({ water_point_id: id })
+    await Inspection.deleteMany({ water_point_id: id })
+    
+    // Then delete water point
+    const result = await WaterPoint.findByIdAndDelete(id)
+    if (!result) {
       return NextResponse.json({ error: 'Water point not found' }, { status: 404 })
     }
 
-    wp.status = 'Inactive'
-    wp.archived_at = new Date()
-    await wp.save()
-
-    return NextResponse.json({ data: serialize(wp) })
+    return NextResponse.json({ data: { message: 'Water point deleted successfully' } })
   } catch (err) {
     console.error('DELETE /api/water-points/:id error', err)
-    return NextResponse.json({ error: 'Failed to archive water point' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete water point' }, { status: 500 })
   }
 }

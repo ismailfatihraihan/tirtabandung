@@ -98,8 +98,8 @@ export default function WaterPointsPage() {
     return <Badge variant={variants[status]}>{status}</Badge>;
   };
 
-  const handleArchive = async (point: WaterPoint) => {
-    if (!confirm(`Apakah Anda yakin ingin mengarsipkan "${point.name}"?`)) return;
+  const handleDelete = async (point: WaterPoint) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${point.name}"? Tindakan ini tidak dapat dibatalkan.`)) return;
 
     try {
       const res = await fetch(`/api/water-points/${point._id}`, {
@@ -108,14 +108,14 @@ export default function WaterPointsPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => null);
-        throw new Error(err?.error || 'Gagal mengarsipkan');
+        throw new Error(err?.error || 'Gagal menghapus');
       }
 
-      toast.success("Titik air berhasil diarsipkan!");
-      setAllPoints(prev => prev.map(p => p._id === point._id ? { ...p, status: 'Inactive' as const, archived_at: new Date() } : p));
+      toast.success("Titik air berhasil dihapus!");
+      setAllPoints(prev => prev.filter(p => p._id !== point._id));
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || 'Terjadi kesalahan saat mengarsipkan');
+      toast.error(error.message || 'Terjadi kesalahan saat menghapus');
     }
   };
 
@@ -238,9 +238,9 @@ export default function WaterPointsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            /* Archive handled server-side via DELETE */
-                          }}
+                          onClick={() => handleDelete(point)}
+                          title="Hapus titik air"
+                          className="text-red-600 hover:text-red-700"
                         >
                           <Archive className="h-4 w-4" />
                         </Button>

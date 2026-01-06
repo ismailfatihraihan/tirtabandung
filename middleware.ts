@@ -7,14 +7,6 @@ const protectedRoutes = [
   '/water-points',
   '/inspections',
   '/issues',
-  '/actions',
-  '/users',
-  '/my-tasks'
-]
-
-// Routes yang hanya untuk Admin
-const adminOnlyRoutes = [
-  '/users',
   '/actions'
 ]
 
@@ -31,12 +23,8 @@ export function middleware(request: NextRequest) {
   // Token validation will be done in API routes
   const isAuthenticated = !!authToken
   
-  // Get user role from separate cookie (set during login)
-  const userRole = request.cookies.get('user-role')?.value
-  
   // Check if the route is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
-  const isAdminOnlyRoute = adminOnlyRoutes.some(route => pathname.startsWith(route))
   const isPublicOnlyRoute = publicOnlyRoutes.some(route => pathname.startsWith(route))
   
   // Redirect to login if accessing protected route without authentication
@@ -46,16 +34,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
   
-  // Redirect officer to dashboard if trying to access admin-only routes
-  if (isAdminOnlyRoute && userRole === 'officer') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-  
   // Redirect to dashboard if accessing login/register while authenticated
   if (isPublicOnlyRoute && isAuthenticated) {
-    if (userRole === 'officer') {
-      return NextResponse.redirect(new URL('/my-tasks', request.url))
-    }
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
   

@@ -41,14 +41,24 @@ export interface Inspection {
 
 export interface Issue {
   _id: string;
-  reporter_id: string;
   water_point_id: string;
-  severity_level: 'Low' | 'Medium' | 'High' | 'Critical';
+  reported_by: string;
   title: string;
   description: string;
+  category: 'Kerusakan Fisik' | 'Kualitas Air' | 'Operasional' | 'Lainnya';
+  water_point_name?: string; // Optional friendly display field
+  reporter_name?: string; // Optional friendly display field
+  severity: 'Rendah' | 'Sedang' | 'Tinggi' | 'Kritis';
   status: 'Perlu Disurvei' | 'Sedang Diperbaiki' | 'Selesai' | 'Invalid';
+  photos?: string[];
+  location?: {
+    lat: number;
+    lng: number;
+  };
   created_at: Date | string;
   updated_at?: Date | string;
+  resolved_at?: Date | string;
+  resolved_by?: string;
 }
 
 export interface ActionTracking {
@@ -65,10 +75,10 @@ export interface ActionTracking {
 export interface User {
   _id: string;
   name: string;
-  assigned_district: string;
-  role: 'Admin Pusat' | 'Admin' | 'Surveyor' | 'Petugas Lab' | 'Kader RT' | 'Teknisi';
   email?: string;
   phone?: string;
-  status: 'Active' | 'Inactive';
+  address?: string;
+  is_active: boolean;
   created_at?: Date | string;
+  updated_at?: Date | string;
 }
