@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -51,33 +51,65 @@ export function WaterPointsMapPanel({
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const initMap = async () => {
-      const L = (await import('leaflet')).default
-      if (!mapRef.current || mapInstanceRef.current) return
-
-      // Guard against double-initialization when navigating back
-      if ((mapRef.current as any)._leaflet_id) {
-        try {
-          const existing = L.map(mapRef.current)
-          existing.remove()
-        } catch (_) {
-          // ignore
-        }
-        (mapRef.current as any)._leaflet_id = null
+      console.log('initMap called')
+      if (!mapRef.current || mapInstanceRef.current) {
+        console.log('initMap skipped', !!mapRef.current, !!mapInstanceRef.current)
+        return
       }
 
-      const map = L.map(mapRef.current).setView([-6.9175, 107.6191], 12)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(map)
-      mapInstanceRef.current = map
+      // Wait for container to have dimensions
+      if (mapRef.current.clientWidth === 0 || mapRef.current.clientHeight === 0) {
+        console.log('container has no dimensions, retrying...')
+        setTimeout(initMap, 100)
+        return
+      }
+
+      try {
+        const L = (await import('leaflet')).default
+
+        // Skip if already initialized
+        if ((mapRef.current as any)._leaflet_id) {
+          console.log('already has _leaflet_id, skipping')
+          return
+        }
+
+        console.log('creating map, div size:', mapRef.current.clientWidth, mapRef.current.clientHeight)
+        const map = L.map(mapRef.current).setView([-6.9175, 107.6191], 12)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map)
+        mapInstanceRef.current = map
+        console.log('map created')
+        // Ensure map renders properly
+        requestAnimationFrame(() => {
+          console.log('invalidating size')
+          map.invalidateSize()
+        })
+      } catch (err) {
+        console.error("Map init error:", err)
+      }
     }
+
     initMap()
+    
     return () => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
+        try {
+          mapInstanceRef.current.remove()
+        } catch (_) {}
         mapInstanceRef.current = null
+      }
+      // Clear DOM to prevent _leaflet_id from persisting
+      if (mapRef.current) {
+        mapRef.current.innerHTML = ''
+        // Remove all leaflet-related properties
+        Object.keys(mapRef.current).forEach(key => {
+          if (key.startsWith('_leaflet')) {
+            delete (mapRef.current as any)[key]
+          }
+        })
       }
     }
   }, [])
@@ -112,6 +144,8 @@ export function WaterPointsMapPanel({
         const group = L.featureGroup(markers)
         map.fitBounds(group.getBounds().pad(0.1))
       }
+      // Ensure map renders after changes
+      requestAnimationFrame(() => map.invalidateSize())
     }
     addMarkers()
   }, [points, onSelect])
@@ -165,7 +199,7 @@ export function WaterPointsMapPanel({
           <div className="grid gap-4 md:grid-cols-3">
             <div className="md:col-span-2">
               <div className="rounded-lg border border-slate-200">
-                <div ref={mapRef} className="w-full h-105" />
+                <div ref={mapRef} className="w-full" style={{ height: '420px' }} />
               </div>
             </div>
             <div className="space-y-3 max-h-105 overflow-y-auto pr-1">

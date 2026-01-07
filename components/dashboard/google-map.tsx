@@ -81,38 +81,48 @@ export function GoogleMapComponent() {
     const initMap = async () => {
       if (!mapRef.current) return
       if (mapInstanceRef.current) return
-      // Handle cases where Leaflet attaches _leaflet_id during hot reload/strict mode
-      if ((mapRef.current as any)._leaflet_id) {
-        try {
-          const L = (await import("leaflet")).default
-          const existing = L.map(mapRef.current)
-          existing.remove()
-        } catch (_) {
-          // Ignore cleanup errors
+
+      try {
+        const L = (await import("leaflet")).default
+        
+        // Ensure container is clean
+        if ((mapRef.current as any)._leaflet_id) {
+          return // Already initialized, skip
         }
-        (mapRef.current as any)._leaflet_id = null
+
+        const map = L.map(mapRef.current, {
+          minZoom: 11,
+          maxZoom: 18,
+          maxBounds: [
+            [-7.2, 107.45],
+            [-6.75, 107.75]
+          ],
+          maxBoundsViscosity: 0.75
+        }).setView([-6.9175, 107.6191], 12)
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors"
+        }).addTo(map)
+
+        mapInstanceRef.current = map
+      } catch (err) {
+        console.error("Map init error:", err)
       }
-      const L = (await import("leaflet")).default
-      const map = L.map(mapRef.current, {
-        minZoom: 11,
-        maxZoom: 18,
-        maxBounds: [
-          [-7.2, 107.45], // Southwest (Bandung area bounds)
-          [-6.75, 107.75] // Northeast
-        ],
-        maxBoundsViscosity: 0.75
-      }).setView([-6.9175, 107.6191], 12)
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors"
-      }).addTo(map)
-      mapInstanceRef.current = map
     }
 
     initMap()
+    
     return () => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
+        try {
+          mapInstanceRef.current.remove()
+        } catch (_) {}
         mapInstanceRef.current = null
+      }
+      // Clear DOM to prevent _leaflet_id from persisting
+      if (mapRef.current) {
+        mapRef.current.innerHTML = ''
+        delete (mapRef.current as any)._leaflet_id
       }
     }
   }, [])
