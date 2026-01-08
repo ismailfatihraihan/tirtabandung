@@ -1,8 +1,9 @@
 "use client"
 
-import { Bell, Clock } from "lucide-react"
+import { Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UserNav } from "./user-nav"
+import { NotificationsDropdown } from "./notifications-dropdown"
 
 interface TopbarProps {
   activeTab: string
@@ -28,10 +29,7 @@ export function Topbar({ activeTab }: TopbarProps) {
         </p>
       </div>
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="w-5 h-5 text-slate-600" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-        </Button>
+        <NotificationsDropdown />
         <UserNav />
       </div>
     </div>

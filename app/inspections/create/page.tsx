@@ -11,14 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Upload, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useNotifications } from "@/components/notifications/NotificationsProvider";
 
 interface WaterPoint {
-  id: string;
+  _id: string;
   name: string;
+  location?: { sub_district?: string };
 }
 
 export default function NewInspectionPage() {
   const router = useRouter();
+  const { addNotification } = useNotifications();
   const [waterPoints, setWaterPoints] = useState<WaterPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,7 +46,7 @@ export default function NewInspectionPage() {
       const response = await fetch('/api/water-points');
       if (response.ok) {
         const data = await response.json();
-        setWaterPoints(data.data.map((wp: any) => ({ id: wp.id, name: wp.name })));
+        setWaterPoints(data.data.map((wp: any) => ({ _id: wp._id || wp.id, name: wp.name, location: wp.location })));
       }
     } catch (error) {
       console.error('Failed to fetch water points:', error);
@@ -68,8 +71,6 @@ export default function NewInspectionPage() {
     setLoading(true);
 
     try {
-      const status = showWarning ? 'Berbahaya' : 'Aman';
-
       const response = await fetch('/api/inspections', {
         method: 'POST',
         headers: {
@@ -95,8 +96,10 @@ export default function NewInspectionPage() {
         const status = data.data.status;
         if (status === 'Berbahaya') {
           toast.error("⚠️ Air tidak aman! Notifikasi bahaya telah dikirim ke tim.");
+          addNotification({ title: 'Inspeksi - Air Berbahaya', description: `Titik: ${formData.water_point_id}` });
         } else {
           toast.success("Hasil inspeksi berhasil disimpan!");
+          addNotification({ title: 'Inspeksi berhasil', description: `Titik: ${formData.water_point_id}` });
         }
         router.push('/inspections');
       } else {
@@ -150,7 +153,7 @@ export default function NewInspectionPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {waterPoints.map((wp) => (
-                    <SelectItem key={wp.id} value={wp.id}>{wp.name}</SelectItem>
+                    <SelectItem key={(wp as any)._id || (wp as any).id} value={(wp as any)._id || (wp as any).id}>{wp.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -266,7 +269,6 @@ export default function NewInspectionPage() {
                   onChange={(e) => {
                     if (e.target.files) {
                       const files = Array.from(e.target.files);
-                      // For now, just store filenames as strings
                       const photoUrls = files.map(file => `/uploads/${file.name}`);
                       setFormData({ ...formData, photos: photoUrls });
                       toast.success(`${files.length} foto berhasil dipilih`);

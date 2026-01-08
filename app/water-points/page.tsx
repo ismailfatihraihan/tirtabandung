@@ -126,7 +126,7 @@ export default function WaterPointsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Titik Sumber Air</h1>
           <p className="text-muted-foreground">Kelola data sumur, sungai, dan toren air</p>
         </div>
-        <Button onClick={() => router.push('/water-points/new')}>
+        <Button onClick={() => router.push('/water-points/create')}>
           <Plus className="mr-2 h-4 w-4" />
           Registrasi Titik Baru
         </Button>

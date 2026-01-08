@@ -11,9 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { WaterPoint } from "@/lib/types/database";
+import { useNotifications } from "@/components/notifications/NotificationsProvider";
 
 export default function NewIssuePage() {
   const router = useRouter();
+  const { addNotification } = useNotifications();
   const [formData, setFormData] = useState({
     water_point_id: "",
     category: "",
@@ -55,7 +57,7 @@ export default function NewIssuePage() {
         description: formData.description,
         category: formData.category,
         severity: formData.severity,
-        photos: formData.photo ? [formData.photo.name] : [] // TODO: Handle file upload properly
+        photos: formData.photo ? [formData.photo.name] : []
       };
 
       const response = await fetch('/api/issues', {
@@ -72,6 +74,7 @@ export default function NewIssuePage() {
       }
 
       toast.success("Laporan masalah berhasil dibuat!");
+      addNotification({ title: 'Laporan masalah baru', description: formData.title || 'Ada laporan masalah baru' });
       router.push('/issues');
     } catch (error) {
       console.error('Error creating issue:', error);
@@ -120,8 +123,8 @@ export default function NewIssuePage() {
                     </div>
                   ) : (
                     waterPoints.map((wp) => (
-                      <SelectItem key={wp.id} value={wp.id}>
-                        {wp.name} - {wp.location.sub_district}
+                      <SelectItem key={wp._id || (wp as any).id} value={wp._id || (wp as any).id}>
+                        {wp.name} - {wp.location?.sub_district}
                       </SelectItem>
                     ))
                   )}

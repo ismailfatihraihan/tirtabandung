@@ -138,7 +138,7 @@ export default function IssuesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Pelaporan & Tindakan</h1>
           <p className="text-muted-foreground">Sistem tiket penanganan masalah</p>
         </div>
-        <Button onClick={() => router.push('/issues/new')}>
+        <Button onClick={() => router.push('/issues/create')}>
           <Plus className="mr-2 h-4 w-4" />
           Buat Laporan Masalah
         </Button>

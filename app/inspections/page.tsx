@@ -90,7 +90,7 @@ export default function InspectionsPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={() => router.push('/inspections/new')}>
+          <Button onClick={() => router.push('/inspections/create')}>
             <Plus className="mr-2 h-4 w-4" />
             Input Hasil Lab
           </Button>
