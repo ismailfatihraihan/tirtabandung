@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       email: user.email,
       phone: user.phone,
       address: user.address,
+      avatar: user.avatar || null,
       is_active: user.is_active,
       created_at: user.created_at
     }

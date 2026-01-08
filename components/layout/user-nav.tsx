@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { LogOut, User, Settings } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -32,9 +32,12 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-blue-600 text-white">
-              {initials}
-            </AvatarFallback>
+            {user.avatar ? (
+              // Ensure absolute URL for reliably loading from public/uploads
+              <AvatarImage src={typeof window !== 'undefined' && user.avatar?.startsWith('/') ? window.location.origin + user.avatar : user.avatar} alt={user.name} />
+            ) : (
+              <AvatarFallback className="bg-blue-600 text-white">{initials}</AvatarFallback>
+            )}
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -49,7 +52,7 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push('/settings/edit')}>
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>

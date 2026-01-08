@@ -7,6 +7,7 @@ interface User {
   id: string
   name: string
   email: string
+  avatar?: string | null
   phone?: string
   address?: string
   is_active: boolean
@@ -41,9 +42,12 @@ export function useAuth() {
 
       if (response.ok) {
         const data = await response.json()
-        setUser(data.user)
+        // Normalize avatar field to either string or null
+        const fetched = data.user || {}
+        if (fetched.avatar === undefined) fetched.avatar = null
+        setUser(fetched)
         // Sync ke localStorage
-        localStorage.setItem("user", JSON.stringify(data.user))
+        localStorage.setItem("user", JSON.stringify(fetched))
       } else {
         // Token invalid atau expired
         setUser(null)
@@ -56,6 +60,16 @@ export function useAuth() {
       setIsLoading(false)
     }
   }
+
+  // Listen for external updates to the user (e.g. profile edit) and refresh
+  useEffect(() => {
+    const handler = () => {
+      fetchUser()
+    }
+
+    window.addEventListener('user:updated', handler)
+    return () => window.removeEventListener('user:updated', handler)
+  }, [])
 
   const logout = async () => {
     try {
