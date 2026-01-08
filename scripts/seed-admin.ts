@@ -91,6 +91,8 @@ async function seedAdmin() {
       password: hashedPassword,
       role: 'admin',
       phone: '081234567890',
+      district: 'Bandung',
+      address: 'Jl. Admin No. 1, Bandung',
       is_active: true
     })
 
@@ -100,6 +102,8 @@ async function seedAdmin() {
     console.log('🔑 Password :', 'admin123')
     console.log('👤 Nama     :', admin.name)
     console.log('🎯 Role     :', admin.role)
+    console.log('📱 Phone    :', admin.phone)
+    console.log('🏢 District :', admin.district)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('\n💡 Gunakan kredensial di atas untuk login pertama kali')
 

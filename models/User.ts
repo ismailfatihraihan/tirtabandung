@@ -4,9 +4,11 @@ export interface IUser extends Document {
   name: string
   email: string
   password: string
+  role: 'admin' | 'officer'
   phone?: string
   address?: string
-  avatar?: string | null
+  district?: string
+  avatar?: string
   is_active: boolean
   created_at: Date
   updated_at: Date
@@ -31,6 +33,11 @@ const UserSchema = new Schema<IUser>(
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters']
     },
+    role: {
+      type: String,
+      enum: ['admin', 'officer'],
+      required: [true, 'Role is required']
+    },
     phone: {
       type: String,
       trim: true
@@ -39,10 +46,13 @@ const UserSchema = new Schema<IUser>(
       type: String,
       trim: true
     },
+    district: {
+      type: String,
+      trim: true
+    },
     avatar: {
       type: String,
-      trim: true,
-      default: null
+      trim: true
     },
     is_active: {
       type: Boolean,
