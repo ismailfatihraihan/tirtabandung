@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
+      role: 'admin', // Default role admin
       phone: phone || undefined,
       address: address || undefined,
       is_active: true
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
       id: newUser._id,
       name: newUser.name,
       email: newUser.email,
+      role: newUser.role,
       phone: newUser.phone,
       address: newUser.address,
       is_active: newUser.is_active,

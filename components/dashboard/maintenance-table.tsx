@@ -132,7 +132,6 @@ export function MaintenanceTable() {
         <TableCell>
           <Badge className={statusColor(row.status)}>{row.status}</Badge>
         </TableCell>
-        <TableCell className="text-slate-600 text-sm">{row.eta || "-"}</TableCell>
         <TableCell className="text-right">
           <a href={row.link} className="text-blue-600 text-sm hover:underline">Lihat</a>
         </TableCell>
@@ -154,7 +153,6 @@ export function MaintenanceTable() {
             <TableRow className="border-b border-slate-200">
               <TableHead className="text-slate-700 font-semibold">Item</TableHead>
               <TableHead className="text-slate-700 font-semibold">Status</TableHead>
-              <TableHead className="text-slate-700 font-semibold">ETA/Selesai</TableHead>
               <TableHead className="text-right text-slate-700 font-semibold">Aksi</TableHead>
             </TableRow>
           </TableHeader>

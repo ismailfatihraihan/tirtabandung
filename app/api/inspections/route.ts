@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
 
     const body = parsed.data
 
-    // Calculate status if not provided
+    // Ini buat status Berbahaya atau Aman yaaaaaaaaa
     let status = body.status
     if (!status) {
       const { ph, tds, turbidity, ecoli } = body.parameters

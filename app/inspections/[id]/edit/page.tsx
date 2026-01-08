@@ -198,7 +198,7 @@ export default function EditInspectionPage({ params }: { params: Promise<{ id: s
                 <Alert className="border-red-200 bg-red-50">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                   <AlertDescription className="text-red-700">
-                    ⚠️ Air tidak memenuhi standar kesehatan! Ada parameter yang melampaui batas aman.
+                    Air tidak memenuhi standar kesehatan! Ada parameter yang melampaui batas aman.
                   </AlertDescription>
                 </Alert>
               )}
