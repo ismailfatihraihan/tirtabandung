@@ -141,8 +141,8 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   required
                 />
+
               </div>
-            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Loading..." : "Daftar"}
             </Button>
@@ -157,4 +157,5 @@ export default function RegisterPage() {
       </Card>
     </div>
   )
+
 }
