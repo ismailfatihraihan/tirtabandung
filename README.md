@@ -1,6 +1,7 @@
 # Tirta Bandung
 
-Tirta Bandung adalah web-app untuk memantau kadar air di Kota Bandung, seperti kualitas air, sumber mata air, kuantitas air dan sebagainya.
+## Pendahuluan
+Tirta Bandung adalah aplikasi web yang dirancang untuk memantau kualitas dan kuantitas air di Kota Bandung. Dengan fitur-fitur seperti dashboard interaktif, daftar & pencarian titik air, serta pelaporan masalah, aplikasi ini membantu meningkatkan kesadaran dan pengelolaan sumber daya air di kota tersebut. 
 
 ## Fitur
 - Dashboard berisi informasi singkat, peta dan titik air
