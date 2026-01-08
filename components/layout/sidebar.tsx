@@ -66,7 +66,7 @@ export function Sidebar() {
       {/* Admin Badge */}
       <div className="p-4 border-t border-slate-200">
         <div className="px-3 py-2 rounded-lg text-center text-xs font-semibold bg-purple-100 text-purple-700">
-          🛡️ ADMIN PANEL
+          ADMIN PANEL
         </div>
       </div>
     </aside>
