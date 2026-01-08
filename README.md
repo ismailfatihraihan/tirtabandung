@@ -37,24 +37,43 @@ npm run dev
 ## Struktur Folder
 tirtabandung/
 ├── .next/
+
 ├── app/
+
 ├── components/
+
 ├── components.json
+
 ├── hooks/
+
 ├── lib/
+
 ├── middleware.ts
+
 ├── models/
+
 ├── next-env.d.ts
+
 ├── next.config.mjs
+
 ├── node_modules/
+
 ├── package-lock.json
+
 ├── package.json
+
 ├── postcss.config.mjs
+
 ├── public/
+
 ├── query
+
 ├── Readme.md
+
 ├── scripts/
+
 ├── styles/
+
 └── tsconfig.json
 
 ## Screenshot
