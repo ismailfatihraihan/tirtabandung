@@ -73,9 +73,37 @@ tirtabandung/
 
 ├── scripts/
 
-├── styles/
+└── styles/
 
 └── tsconfig.json
+
+## Query
+### Users- User.findOne({ email }): Cek registrasi/login
+- User.create({...}): Buat user baru
+- User.findById(id): Verifikasi user (pada pembuatan inspection/issue)
+
+### WaterPoints- WaterPoint.find(filter).sort({ updated_at: -1 }).lean(): List/pencarian (filter by status, q via $regex pada fields)
+- WaterPoint.create({...}): Membuat water point
+- WaterPoint.findById(id): Ambil detail
+- WaterPoint.findByIdAndUpdate(id, { $set: update }, { new: true }): Update
+- WaterPoint.findByIdAndDelete(id): Delete (API juga memanggil Issue.deleteMany & Inspection.deleteMany dulu)
+
+### Inspections- Inspection.find(filter).populate('water_point_id','name').populate('inspector_id','name').sort({ date: -1 }).lean(): List/filter dengan populate
+- Inspection.create({...}): Membuat inspection (menggunakan userId dari JWT)
+
+### Issues- Issue.find(filter).populate('water_point_id','name').populate('reported_by','name').sort({ created_at: -1 }).lean(): List/filter/search
+- Issue.create({...}): Membuat issue (validasi ObjectId)
+- Issue.findByIdAndUpdate(issue_id, update, { new: true }): Update status + populate
+- Issue.deleteMany({ water_point_id: id }): Cascade deletion when a water point removed
+
+### Schema Hook
+- pre('deleteOne') pada WaterPointSchema memanggil Issue.deleteMany & Inspection.deleteMany
+
+### Utility / Patterns
+- Banyak filter berbasis query params: status enums, id filters, severity/category, and text search ({ $regex: q, $options: 'i' })
+
+### Authentication
+- JWT signed on login; API reads req.cookies.get('auth-token') to authorize POST/PATCH endpoints.
 
 ## Screenshot
 ![inspeksi](https://github.com/user-attachments/assets/7d08e290-df9c-44ff-896d-ab97c1627d20)
