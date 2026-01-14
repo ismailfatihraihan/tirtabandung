@@ -95,7 +95,7 @@ export default function NewInspectionPage() {
         const data = await response.json();
         const status = data.data.status;
         if (status === 'Berbahaya') {
-          toast.error("⚠️ Air tidak aman! Notifikasi bahaya telah dikirim ke tim.");
+          toast.error("Air tidak aman! Notifikasi bahaya telah dikirim ke tim.");
           addNotification({ title: 'Inspeksi - Air Berbahaya', description: `Titik: ${formData.water_point_id}` });
         } else {
           toast.success("Hasil inspeksi berhasil disimpan!");

@@ -3,60 +3,12 @@ import bcrypt from 'bcryptjs'
 import * as dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import User from '../models/User'
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 dotenv.config({ path: join(__dirname, '../.env.local') })
-
-// User schema (copy dari model)
-const UserSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: [true, 'Name is required'],
-      trim: true
-    },
-    email: {
-      type: String,
-      required: [true, 'Email is required'],
-      unique: true,
-      lowercase: true,
-      trim: true
-    },
-    password: {
-      type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters']
-    },
-    role: {
-      type: String,
-      enum: ['admin', 'officer'],
-      required: [true, 'Role is required']
-    },
-    phone: {
-      type: String,
-      trim: true
-    },
-    district: {
-      type: String,
-      trim: true
-    },
-    address: {
-      type: String,
-      trim: true
-    },
-    is_active: {
-      type: Boolean,
-      default: true
-    }
-  },
-  {
-    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
-  }
-)
-
-const User = mongoose.models.User || mongoose.model('User', UserSchema)
 
 async function seedAdmin() {
   try {
@@ -66,15 +18,15 @@ async function seedAdmin() {
       throw new Error('MONGODB_URI tidak ditemukan di .env.local')
     }
 
-    console.log('🔌 Connecting to MongoDB...')
+    console.log('Connecting to MongoDB...')
     await mongoose.connect(MONGODB_URI)
-    console.log('✅ Connected to MongoDB')
+    console.log('Connected to MongoDB')
 
     // Cek apakah admin sudah ada
     const existingAdmin = await User.findOne({ email: 'admin@tirtabandung.com' })
 
     if (existingAdmin) {
-      console.log('⚠️  Admin sudah ada di database')
+      console.log('Admin sudah ada di database')
       console.log('Email:', existingAdmin.email)
       console.log('Nama:', existingAdmin.name)
       await mongoose.connection.close()
@@ -94,24 +46,25 @@ async function seedAdmin() {
       district: 'Bandung',
       address: 'Jl. Admin No. 1, Bandung',
       is_active: true
+      // avatar adalah optional field, bisa diisi nanti jika diperlukan
     })
 
-    console.log('\n✅ Admin berhasil dibuat!')
+    console.log('\nAdmin berhasil dibuat!')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('📧 Email    :', admin.email)
-    console.log('🔑 Password :', 'admin123')
-    console.log('👤 Nama     :', admin.name)
-    console.log('🎯 Role     :', admin.role)
-    console.log('📱 Phone    :', admin.phone)
-    console.log('🏢 District :', admin.district)
+    console.log('Email    :', admin.email)
+    console.log('Password :', 'admin123')
+    console.log('Nama     :', admin.name)
+    console.log('Role     :', admin.role)
+    console.log('Phone    :', admin.phone)
+    console.log('District :', admin.district)
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('\n💡 Gunakan kredensial di atas untuk login pertama kali')
+    console.log('\nGunakan kredensial di atas untuk login pertama kali')
 
     await mongoose.connection.close()
-    console.log('\n✅ Seeding selesai!')
+    console.log('\nSeeding selesai!')
 
   } catch (error) {
-    console.error('❌ Error saat seeding:', error)
+    console.error('Error saat seeding:', error)
     process.exit(1)
   }
 }

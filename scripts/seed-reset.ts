@@ -20,21 +20,21 @@ async function resetAndSeed() {
       throw new Error('MONGODB_URI tidak ditemukan di .env.local')
     }
 
-    console.log('🔌 Connecting to MongoDB...')
+    console.log('Connecting to MongoDB...')
     await mongoose.connect(MONGODB_URI)
-    console.log('✅ Connected to MongoDB')
+    console.log('Connected to MongoDB')
 
     const admin = await User.findOne({ email: ADMIN_EMAIL })
     if (!admin) {
       throw new Error(`Admin dengan email ${ADMIN_EMAIL} tidak ditemukan. Jalankan seed-admin.ts dulu.`)
     }
 
-    console.log('🧹 Menghapus data lama (kecuali admin)...')
+    console.log('Menghapus data lama (kecuali admin)...')
     await User.deleteMany({ email: { $ne: ADMIN_EMAIL } })
     await Issue.deleteMany({})
     await Inspection.deleteMany({})
     await WaterPoint.deleteMany({})
-    console.log('✅ Data lama dibersihkan')
+    console.log('Data lama dibersihkan')
 
     const waterPoints = [
       {
@@ -159,7 +159,7 @@ async function resetAndSeed() {
       }
     ]
 
-    console.log('💧 Menambahkan water points contoh...')
+    console.log('Menambahkan water points contoh...')
     const createdWaterPoints = await WaterPoint.insertMany(waterPoints)
     createdWaterPoints.forEach((wp) => {
       console.log(`- ${wp.name} (${wp.status})`)
@@ -271,7 +271,7 @@ async function resetAndSeed() {
       }
     ]
 
-    console.log('🔍 Menambahkan inspeksi contoh...')
+    console.log('Menambahkan inspeksi contoh...')
     await Inspection.insertMany(inspections)
 
     const issues = [
@@ -349,13 +349,13 @@ async function resetAndSeed() {
       }
     ]
 
-    console.log('📋 Menambahkan isu contoh...')
+    console.log('Menambahkan isu contoh...')
     await Issue.insertMany(issues)
 
-    console.log('\n✅ Reset dan seeding selesai!')
+    console.log('\nReset dan seeding selesai!')
     await mongoose.connection.close()
   } catch (err) {
-    console.error('❌ Error saat reset & seeding:', err)
+    console.error('Error saat reset & seeding:', err)
     process.exit(1)
   }
 }

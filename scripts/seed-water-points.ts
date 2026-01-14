@@ -51,14 +51,14 @@ async function seedWaterPoints() {
       throw new Error('MONGODB_URI tidak ditemukan di .env.local')
     }
 
-    console.log('🔌 Connecting to MongoDB...')
+    console.log('Connecting to MongoDB...')
     await mongoose.connect(MONGODB_URI)
-    console.log('✅ Connected to MongoDB')
+    console.log('Connected to MongoDB')
 
     // Check if water points already exist
     const existingCount = await WaterPoint.countDocuments()
     if (existingCount > 0) {
-      console.log(`⚠️  ${existingCount} water points sudah ada di database`)
+      console.log(`${existingCount} water points sudah ada di database`)
       await mongoose.connection.close()
       return
     }
@@ -105,7 +105,7 @@ async function seedWaterPoints() {
     // Create water points
     const created = await WaterPoint.insertMany(waterPoints)
 
-    console.log('\n✅ Water points berhasil dibuat!')
+    console.log('\nWater points berhasil dibuat!')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     created.forEach((wp, index) => {
       console.log(`${index + 1}. ${wp.name} (${wp.type}) - ${wp.location.sub_district}`)
@@ -113,10 +113,10 @@ async function seedWaterPoints() {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     await mongoose.connection.close()
-    console.log('\n✅ Seeding selesai!')
+    console.log('\nSeeding selesai!')
 
   } catch (error) {
-    console.error('❌ Error saat seeding:', error)
+    console.error('Error saat seeding:', error)
     process.exit(1)
   }
 }
