@@ -35,9 +35,9 @@ export function middleware(request: NextRequest) {
   }
   
   // Redirect to dashboard if accessing login/register while authenticated
-  if (isPublicOnlyRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  // NOTE: do not forcibly redirect authenticated users away from public pages here.
+  // Keep public pages accessible so client-side code can decide whether to
+  // perform a safe redirect after verifying the token with the server.
   
   return NextResponse.next()
 }
